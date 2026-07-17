@@ -14,6 +14,10 @@ warn() {
   printf "\n\033[1;33m%s\033[0m\n" "$1"
 }
 
+is_interactive() {
+  [[ -t 0 ]] && [[ -t 1 ]]
+}
+
 die() {
   printf "\n\033[1;31mError: %s\033[0m\n" "$1" >&2
   exit 1
@@ -23,6 +27,12 @@ prompt() {
   local label="$1"
   local default="${2:-}"
   local value
+
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    printf "%s" "$default"
+    return 0
+  fi
+
   if [[ -n "$default" ]]; then
     read -r -p "$label [$default]: " value
     printf "%s" "${value:-$default}"
@@ -34,7 +44,19 @@ prompt() {
 
 prompt_secret() {
   local label="$1"
+  local default="${2:-}"
   local value
+
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    if [[ -n "$default" ]]; then
+      printf "%s" "$default"
+    else
+      printf "%s" "$(generate_secret)"
+    fi
+    printf "\n" >&2
+    return 0
+  fi
+
   read -r -s -p "$label: " value
   printf "\n" >&2
   printf "%s" "$value"
@@ -44,6 +66,12 @@ yes_no() {
   local label="$1"
   local default="${2:-y}"
   local value
+
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    [[ "$default" =~ ^[Yy]([Ee][Ss])?$ ]]
+    return
+  fi
+
   read -r -p "$label [$default]: " value
   value="${value:-$default}"
   [[ "$value" =~ ^[Yy]([Ee][Ss])?$ ]]
@@ -433,8 +461,16 @@ setup_lets_encrypt() {
 }
 
 main() {
+  if [[ "${1:-}" == "--non-interactive" ]]; then
+    export INSTALLER_NON_INTERACTIVE=1
+  fi
+
   say "Amadeh Pack automated installer"
   cd "$APP_DIR"
+
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    warn "No interactive terminal detected. The installer will proceed with safe defaults and generated secrets."
+  fi
 
   install_nodejs
 
@@ -456,6 +492,7 @@ main() {
   local server_names
   local ssl_email
   local db_name
+  local generated_admin_password
   local db_user
   local db_password
   local db_host
@@ -496,8 +533,9 @@ main() {
   admin_email="$(prompt "Admin email" "admin@$domain")"
   admin_name="$(prompt "Admin name" "مدیر آماده‌پک")"
   admin_phone="$(prompt "Admin phone" "")"
-  admin_password="$(prompt_secret "Admin password")"
-  admin_password_confirm="$(prompt_secret "Confirm admin password")"
+  generated_admin_password="$(generate_secret)"
+  admin_password="$(prompt_secret "Admin password" "$generated_admin_password")"
+  admin_password_confirm="$(prompt_secret "Confirm admin password" "$generated_admin_password")"
   [[ "$admin_password" == "$admin_password_confirm" ]] || die "Admin passwords do not match."
   [[ ${#admin_password} -ge 8 ]] || die "Admin password must be at least 8 characters."
 
