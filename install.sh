@@ -87,6 +87,38 @@ generate_secret() {
   fi
 }
 
+install_nodejs() {
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    return
+  fi
+
+  warn "node and/or npm was not found."
+  if ! yes_no "Install Node.js 22 and npm automatically?" "y"; then
+    die "node and npm are required to install and run this application."
+  fi
+
+  require_command sudo
+
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y ca-certificates curl gnupg
+    sudo install -d -m 0755 /etc/apt/keyrings
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list >/dev/null
+    sudo apt-get update
+    sudo apt-get install -y nodejs
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y nodejs npm
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y nodejs npm
+  else
+    die "Could not install Node.js automatically. Install Node.js 22 and npm, then run this script again."
+  fi
+
+  command -v node >/dev/null 2>&1 || die "Node.js installation failed."
+  command -v npm >/dev/null 2>&1 || die "npm installation failed."
+}
+
 install_nginx() {
   if command -v nginx >/dev/null 2>&1; then
     return
@@ -270,8 +302,7 @@ main() {
   say "Amadeh Pack automated installer"
   cd "$APP_DIR"
 
-  require_command node
-  require_command npm
+  install_nodejs
 
   local domain
   local site_url
