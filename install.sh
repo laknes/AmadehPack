@@ -189,12 +189,24 @@ generate_secret() {
 }
 
 install_nodejs() {
-  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
-    return
+  local node_version
+  local npm_version
+
+  if command -v node >/dev/null 2>&1; then
+    node_version="$(node -v 2>/dev/null || true)"
+  fi
+  if command -v npm >/dev/null 2>&1; then
+    npm_version="$(npm -v 2>/dev/null || true)"
   fi
 
-  warn "node and/or npm was not found."
-  if ! yes_no "Install Node.js 22 and npm automatically?" "y"; then
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 && node_version != "" && npm_version != ""; then
+    if [[ "$node_version" =~ ^v(2[2-9]|[3-9][0-9]) ]]; then
+      return
+    fi
+  fi
+
+  warn "Node.js $node_version or npm $npm_version is not compatible with this project requirements."
+  if ! yes_no "Install or upgrade Node.js 22 and npm automatically?" "y"; then
     die "node and npm are required to install and run this application."
   fi
 
@@ -549,9 +561,9 @@ main() {
 
   say "Installing npm dependencies"
   if [[ -f package-lock.json ]]; then
-    npm ci
+    npm ci --engine-strict=false
   else
-    npm install
+    npm install --engine-strict=false
   fi
 
   load_env
