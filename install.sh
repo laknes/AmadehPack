@@ -87,6 +87,57 @@ generate_secret() {
   fi
 }
 
+install_nginx() {
+  if command -v nginx >/dev/null 2>&1; then
+    return
+  fi
+
+  warn "nginx was not found."
+  if ! yes_no "Install nginx automatically?" "y"; then
+    die "nginx is required for reverse proxy and Let's Encrypt SSL."
+  fi
+
+  require_command sudo
+
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y nginx
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y nginx
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y nginx
+  else
+    die "Could not install nginx automatically. Install nginx, then run this script again."
+  fi
+
+  sudo systemctl enable nginx
+  sudo systemctl start nginx
+}
+
+install_certbot() {
+  if command -v certbot >/dev/null 2>&1; then
+    return
+  fi
+
+  warn "certbot was not found."
+  if ! yes_no "Install certbot automatically?" "y"; then
+    die "certbot is required for Let's Encrypt SSL."
+  fi
+
+  require_command sudo
+
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y certbot python3-certbot-nginx
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y certbot python3-certbot-nginx
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y certbot python3-certbot-nginx
+  else
+    die "Could not install certbot automatically. Install certbot and the nginx plugin, then run this script again."
+  fi
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required but was not found."
 }
@@ -159,14 +210,14 @@ EOF
 }
 
 create_nginx_config() {
-  local domain="$1"
+  local server_names="$1"
   local port="$2"
   command -v nginx >/dev/null 2>&1 || die "nginx is not installed."
 
   sudo tee "/etc/nginx/sites-available/$APP_NAME" >/dev/null <<EOF
 server {
     listen 80;
-    server_name $domain;
+    server_name $server_names;
 
     client_max_body_size 20m;
 
@@ -186,6 +237,32 @@ EOF
 
   sudo ln -sfn "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/$APP_NAME"
   sudo nginx -t
+  sudo systemctl reload nginx
+}
+
+setup_lets_encrypt() {
+  local primary_domain="$1"
+  local server_names="$2"
+  local email="$3"
+  local -a certbot_domains=()
+  local name
+
+  [[ "$primary_domain" != "example.com" ]] || die "Use a real domain before enabling Let's Encrypt."
+  [[ -n "$email" ]] || die "Email is required for Let's Encrypt."
+
+  install_certbot
+
+  for name in $server_names; do
+    certbot_domains+=("-d" "$name")
+  done
+
+  sudo certbot --nginx \
+    "${certbot_domains[@]}" \
+    --non-interactive \
+    --agree-tos \
+    --email "$email" \
+    --redirect
+
   sudo systemctl reload nginx
 }
 
@@ -211,6 +288,8 @@ main() {
   local admin_password_confirm
   local admin_name
   local admin_phone
+  local server_names
+  local ssl_email
 
   domain="$(prompt "Domain name without protocol" "example.com")"
   site_url="$(prompt "Public site URL" "https://$domain")"
@@ -224,10 +303,8 @@ main() {
   direct_url="$(prompt "DIRECT_URL for Neon non-pooled connection (optional)" "$database_url")"
   direct_url="$(normalize_database_url "$direct_url")"
 
-  nextauth_secret="$(prompt "NEXTAUTH_SECRET, leave empty to auto-generate")"
-  if [[ -z "$nextauth_secret" ]]; then
-    nextauth_secret="$(generate_secret)"
-  fi
+  nextauth_secret="$(generate_secret)"
+  say "NEXTAUTH_SECRET generated automatically."
 
   upload_dir="$(prompt "Upload directory" "./public/uploads")"
   payment_provider="$(prompt "Default payment provider" "MOCK")"
@@ -284,10 +361,21 @@ main() {
     say "systemd service started: $APP_NAME"
   fi
 
-  if command -v nginx >/dev/null 2>&1 && yes_no "Create nginx reverse proxy for $domain?" "n"; then
+  if yes_no "Create nginx reverse proxy for $domain?" "n"; then
     require_command sudo
-    create_nginx_config "$domain" "$port"
-    say "nginx reverse proxy configured for $domain"
+    install_nginx
+    server_names="$domain"
+    if [[ "$domain" != www.* ]] && yes_no "Also configure www.$domain?" "y"; then
+      server_names="$server_names www.$domain"
+    fi
+    create_nginx_config "$server_names" "$port"
+    say "nginx reverse proxy configured for $server_names"
+
+    if yes_no "Configure Let's Encrypt SSL for $server_names?" "y"; then
+      ssl_email="$(prompt "Let's Encrypt email" "$admin_email")"
+      setup_lets_encrypt "$domain" "$server_names" "$ssl_email"
+      say "Let's Encrypt SSL configured for $server_names"
+    fi
   fi
 
   say "Installation completed"

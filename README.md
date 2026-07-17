@@ -32,7 +32,9 @@ chmod +x install.sh
 ./install.sh
 ```
 
-اسکریپت دامنه، `DATABASE_URL`، تنظیمات NextAuth، مسیر آپلود، اطلاعات ادمین، اجرای `prisma db push`، seed اولیه، build production، سرویس `systemd` و در صورت تایید reverse proxy با nginx را مرحله‌به‌مرحله تنظیم می‌کند.
+اسکریپت دامنه، `DATABASE_URL`، تولید خودکار `NEXTAUTH_SECRET`، تنظیمات NextAuth، مسیر آپلود، اطلاعات ادمین، اجرای `prisma db push`، seed اولیه، build production و سرویس `systemd` را مرحله‌به‌مرحله تنظیم می‌کند.
+
+در صورت تایید، nginx را هم نصب/تنظیم می‌کند و برای دامنه با Let's Encrypt گواهی SSL می‌گیرد. قبل از فعال‌کردن SSL مطمئن شوید رکوردهای DNS دامنه به IP همین سرور اشاره می‌کنند و پورت‌های `80` و `443` باز هستند.
 
 آدرس پیش‌فرض:
 
