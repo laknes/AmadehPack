@@ -560,10 +560,22 @@ main() {
   mkdir -p "$upload_dir"
 
   say "Installing npm dependencies"
+  export npm_config_jobs=1
+  export npm_config_audit=false
+  export npm_config_fund=false
+  export npm_config_progress=false
+  export npm_config_loglevel=error
+
   if [[ -f package-lock.json ]]; then
-    npm ci --engine-strict=false
+    if ! npm ci --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error; then
+      warn "Primary npm install failed. Retrying in low-memory fallback mode."
+      npm ci --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error
+    fi
   else
-    npm install --engine-strict=false
+    if ! npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error; then
+      warn "Primary npm install failed. Retrying in low-memory fallback mode."
+      npm install --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error
+    fi
   fi
 
   load_env
