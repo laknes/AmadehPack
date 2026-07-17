@@ -61,6 +61,25 @@ append_query_param() {
 
 normalize_database_url() {
   local url="$1"
+  if [[ -z "$url" ]]; then
+    printf "%s" "$url"
+    return
+  fi
+
+  if [[ "$url" == postgresql://* || "$url" == postgres://* ]]; then
+    url="$(node -e '
+      const input = process.argv[1];
+      try {
+        const parsed = new URL(input);
+        if (parsed.username) parsed.username = encodeURIComponent(decodeURIComponent(parsed.username));
+        if (parsed.password) parsed.password = encodeURIComponent(decodeURIComponent(parsed.password));
+        process.stdout.write(parsed.toString());
+      } catch {
+        process.stdout.write(input);
+      }
+    ' "$url")"
+  fi
+
   if [[ "$url" == *"neon.tech"* && "$url" != *"sslmode="* ]]; then
     url="$(append_query_param "$url" "sslmode=require")"
   fi
@@ -68,6 +87,11 @@ normalize_database_url() {
     url="$(append_query_param "$url" "pgbouncer=true")"
   fi
   printf "%s" "$url"
+}
+
+url_encode_component() {
+  local value="$1"
+  node -e 'process.stdout.write(encodeURIComponent(process.argv[1] ?? ""));' "$value"
 }
 
 shell_escape() {
@@ -404,7 +428,7 @@ main() {
     db_password="${db_settings[2]}"
     db_host="${db_settings[3]}"
     db_port="${db_settings[4]}"
-    database_url="postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?schema=public"
+    database_url="postgresql://$(url_encode_component "$db_user"):$(url_encode_component "$db_password")@${db_host}:${db_port}/${db_name}?schema=public"
     direct_url="$database_url"
     say "Local PostgreSQL configured for database '$db_name'."
   else
