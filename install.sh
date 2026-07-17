@@ -170,6 +170,67 @@ install_certbot() {
   fi
 }
 
+install_postgresql() {
+  if command -v psql >/dev/null 2>&1; then
+    return
+  fi
+
+  warn "PostgreSQL client was not found."
+  if ! yes_no "Install PostgreSQL locally on this server?" "y"; then
+    die "PostgreSQL is required to install and run this application."
+  fi
+
+  require_command sudo
+
+  if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y postgresql postgresql-contrib
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y postgresql postgresql-server
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y postgresql postgresql-server
+  else
+    die "Could not install PostgreSQL automatically. Install PostgreSQL, then run this script again."
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    sudo systemctl enable postgresql >/dev/null 2>&1 || true
+    sudo systemctl start postgresql >/dev/null 2>&1 || true
+  fi
+
+  if command -v service >/dev/null 2>&1; then
+    sudo service postgresql start >/dev/null 2>&1 || true
+  fi
+
+  command -v psql >/dev/null 2>&1 || die "PostgreSQL installation failed."
+}
+
+configure_local_postgresql() {
+  local db_name="${1:-amadeh_pack}"
+  local db_user="${2:-amadeh_pack}"
+  local db_password="${3:-$(generate_secret)}"
+  local host="${4:-127.0.0.1}"
+  local port="${5:-5432}"
+
+  install_postgresql
+
+  if command -v systemctl >/dev/null 2>&1; then
+    sudo systemctl enable postgresql >/dev/null 2>&1 || true
+    sudo systemctl start postgresql >/dev/null 2>&1 || true
+  fi
+  if command -v service >/dev/null 2>&1; then
+    sudo service postgresql start >/dev/null 2>&1 || true
+  fi
+
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -tc "SELECT 1 FROM pg_roles WHERE rolname='${db_user}'" | grep -q 1 || \
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE ${db_user} WITH LOGIN PASSWORD '${db_password}';"
+
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -tc "SELECT 1 FROM pg_database WHERE datname='${db_name}'" | grep -q 1 || \
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${db_name} OWNER ${db_user};"
+
+  printf "%s\n%s\n%s\n%s\n%s\n" "$db_name" "$db_user" "$db_password" "$host" "$port"
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required but was not found."
 }
@@ -321,18 +382,36 @@ main() {
   local admin_phone
   local server_names
   local ssl_email
+  local db_name
+  local db_user
+  local db_password
+  local db_host
+  local db_port
+  local db_config
 
   domain="$(prompt "Domain name without protocol" "example.com")"
   site_url="$(prompt "Public site URL" "https://$domain")"
   nextauth_url="$(prompt "NextAuth URL" "$site_url")"
   port="$(prompt "Application port" "3000")"
 
-  database_url="$(prompt "PostgreSQL/Neon DATABASE_URL")"
-  [[ -n "$database_url" ]] || die "DATABASE_URL is required."
-  database_url="$(normalize_database_url "$database_url")"
-
-  direct_url="$(prompt "DIRECT_URL for Neon non-pooled connection (optional)" "$database_url")"
-  direct_url="$(normalize_database_url "$direct_url")"
+  database_url="$(prompt "PostgreSQL/Neon DATABASE_URL (leave blank for local PostgreSQL)")"
+  if [[ -z "$database_url" ]]; then
+    warn "No database URL was provided. A local PostgreSQL instance will be configured on this server."
+    db_config="$(configure_local_postgresql)"
+    mapfile -t db_settings <<< "$db_config"
+    db_name="${db_settings[0]}"
+    db_user="${db_settings[1]}"
+    db_password="${db_settings[2]}"
+    db_host="${db_settings[3]}"
+    db_port="${db_settings[4]}"
+    database_url="postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}?schema=public"
+    direct_url="$database_url"
+    say "Local PostgreSQL configured for database '$db_name'."
+  else
+    database_url="$(normalize_database_url "$database_url")"
+    direct_url="$(prompt "DIRECT_URL for Neon non-pooled connection (optional)" "$database_url")"
+    direct_url="$(normalize_database_url "$direct_url")"
+  fi
 
   nextauth_secret="$(generate_secret)"
   say "NEXTAUTH_SECRET generated automatically."
