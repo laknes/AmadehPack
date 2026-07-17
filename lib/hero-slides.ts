@@ -1,0 +1,32 @@
+export const heroSlides = [
+  {
+    id: "salad-bowl",
+    eyebrow: "کاسه‌های غذایی آماده سرو",
+    title: "کاسه کاغذی سفید برای سالاد و غذای آماده",
+    description: "نمای محصول بدون پس‌زمینه، مناسب برندهایی که کیفیت بسته‌بندی را در اولین نگاه نشان می‌دهند.",
+    image: "/hero-bowl-cutout.png",
+    href: "/shop?category=bowls",
+    cta: "مشاهده کاسه‌ها",
+    accent: "green",
+  },
+  {
+    id: "kraft-cup",
+    eyebrow: "لیوان‌های کافه و بیرون‌بر",
+    title: "لیوان کاغذی قهوه برای تجربه سرو حرفه‌ای",
+    description: "مناسب کافه‌ها، سفارش عمده، چاپ اختصاصی و نمایش جذاب محصول در صفحه اصلی.",
+    image: "/hero-coffee-cup.png",
+    href: "/shop?category=cups",
+    cta: "مشاهده لیوان‌ها",
+    accent: "orange",
+  },
+  {
+    id: "pizza-box",
+    eyebrow: "کارتن پیتزای سوئدی",
+    title: "بسته‌بندی پیتزا با ظاهر تمیز و حرفه‌ای",
+    description: "انتخاب مناسب برای رستوران‌هایی که تجربه تحویل را هم بخشی از برند می‌دانند.",
+    image: "/mock-products/pizza-box-30.svg",
+    href: "/shop?category=pizza",
+    cta: "مشاهده کارتن‌ها",
+    accent: "kraft",
+  },
+];
