@@ -73,6 +73,12 @@ normalize_database_url() {
         const parsed = new URL(input);
         if (parsed.username) parsed.username = encodeURIComponent(decodeURIComponent(parsed.username));
         if (parsed.password) parsed.password = encodeURIComponent(decodeURIComponent(parsed.password));
+        if (!/^\d+$/.test(parsed.port)) {
+          parsed.port = "5432";
+        }
+        if (parsed.pathname && parsed.pathname !== "/") {
+          parsed.pathname = parsed.pathname.replace(/\/+/g, "/");
+        }
         process.stdout.write(parsed.toString());
       } catch {
         process.stdout.write(input);
@@ -86,12 +92,55 @@ normalize_database_url() {
   if [[ "$url" == *"-pooler."* && "$url" != *"pgbouncer="* ]]; then
     url="$(append_query_param "$url" "pgbouncer=true")"
   fi
+
+  if [[ "$url" == postgresql://* || "$url" == postgres://* ]]; then
+    url="$(node -e '
+      const input = process.argv[1];
+      try {
+        const parsed = new URL(input);
+        const host = parsed.hostname || "localhost";
+        const port = /^\d+$/.test(parsed.port) ? parsed.port : "5432";
+        const database = (parsed.pathname || "/").replace(/^\/+/, "").replace(/\/+/g, "/") || "postgres";
+        const username = parsed.username ? decodeURIComponent(parsed.username) : "postgres";
+        const password = parsed.password ? decodeURIComponent(parsed.password) : "";
+        const protocol = parsed.protocol || "postgresql:";
+        const encodedUser = encodeURIComponent(username);
+        const encodedPassword = encodeURIComponent(password);
+        const base = `${protocol}//${encodedUser}${password ? ":" + encodedPassword : ""}@${host}:${port}/${database}`;
+        const finalUrl = new URL(base);
+        for (const [key, value] of parsed.searchParams.entries()) {
+          finalUrl.searchParams.set(key, value);
+        }
+        process.stdout.write(finalUrl.toString());
+      } catch {
+        process.stdout.write(input);
+      }
+    ' "$url")"
+  fi
+
   printf "%s" "$url"
 }
 
-url_encode_component() {
-  local value="$1"
-  node -e 'process.stdout.write(encodeURIComponent(process.argv[1] ?? ""));' "$value"
+build_database_url() {
+  local db_user="$1"
+  local db_password="$2"
+  local db_host="$3"
+  local db_port="$4"
+  local db_name="$5"
+  local db_schema="${6:-public}"
+
+  node - <<'NODE' "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "$db_schema"
+const [user, password, host, port, name, schema] = process.argv.slice(2);
+const safeUser = encodeURIComponent(decodeURIComponent(user ?? ""));
+const safePassword = encodeURIComponent(decodeURIComponent(password ?? ""));
+const safeHost = (host || "127.0.0.1").trim();
+const safePort = /^\d+$/.test((port || "").trim()) ? String(port).trim() : "5432";
+const safeName = (name || "postgres").trim();
+const safeSchema = (schema || "public").trim();
+const url = new URL(`postgresql://${safeUser}:${safePassword}@${safeHost}:${safePort}/${safeName}`);
+url.searchParams.set("schema", safeSchema);
+process.stdout.write(url.toString());
+NODE
 }
 
 shell_escape() {
@@ -428,7 +477,7 @@ main() {
     db_password="${db_settings[2]}"
     db_host="${db_settings[3]}"
     db_port="${db_settings[4]}"
-    database_url="postgresql://$(url_encode_component "$db_user"):$(url_encode_component "$db_password")@${db_host}:${db_port}/${db_name}?schema=public"
+    database_url="$(build_database_url "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "public")"
     direct_url="$database_url"
     say "Local PostgreSQL configured for database '$db_name'."
   else
