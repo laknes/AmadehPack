@@ -14,6 +14,17 @@ warn() {
   printf "\n\033[1;33m%s\033[0m\n" "$1"
 }
 
+is_low_resource_server() {
+  if [[ -f /proc/meminfo ]]; then
+    local mem_kb
+    mem_kb="$(awk '/MemAvailable/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+    if [[ -n "$mem_kb" && "$mem_kb" -lt 1200000 ]]; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
 is_interactive() {
   [[ -t 0 ]] && [[ -t 1 ]]
 }
@@ -484,6 +495,15 @@ main() {
     warn "No interactive terminal detected. The installer will proceed with safe defaults and generated secrets."
   fi
 
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]]; then
+    export INSTALLER_AUTO=1
+  fi
+
+  if is_low_resource_server; then
+    warn "Low-resource server detected. The installer will use lighter defaults and skip optional heavy steps."
+    export INSTALLER_LOW_RESOURCE=1
+  fi
+
   install_nodejs
 
   local domain
@@ -514,7 +534,11 @@ main() {
   domain="$(prompt "Domain name without protocol" "example.com")"
   site_url="$(prompt "Public site URL" "https://$domain")"
   nextauth_url="$(prompt "NextAuth URL" "$site_url")"
-  port="$(prompt "Application port" "3000")"
+  if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
+    port="$(prompt "Application port" "3001")"
+  else
+    port="$(prompt "Application port" "3000")"
+  fi
 
   database_url="$(prompt "PostgreSQL/Neon DATABASE_URL (leave blank for local PostgreSQL)")"
   if [[ -z "$database_url" ]]; then
@@ -552,7 +576,11 @@ main() {
   [[ ${#admin_password} -ge 8 ]] || die "Admin password must be at least 8 characters."
 
   if [[ -f "$ENV_FILE" || -f "$ENV_PROD_FILE" ]]; then
-    yes_no "Existing env files found. Overwrite them?" "n" || die "Installation cancelled."
+    if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
+      warn "Existing env files found. Overwriting them in low-resource mode."
+    else
+      yes_no "Existing env files found. Overwrite them?" "n" || die "Installation cancelled."
+    fi
   fi
 
   say "Writing environment files"
@@ -565,16 +593,18 @@ main() {
   export npm_config_fund=false
   export npm_config_progress=false
   export npm_config_loglevel=error
+  export npm_config_cache="$APP_DIR/.npm-cache"
+  mkdir -p "$APP_DIR/.npm-cache"
 
   if [[ -f package-lock.json ]]; then
-    if ! npm ci --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error; then
+    if ! npm ci --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1; then
       warn "Primary npm install failed. Retrying in low-memory fallback mode."
-      npm ci --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error
+      npm ci --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1
     fi
   else
-    if ! npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error; then
+    if ! npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1; then
       warn "Primary npm install failed. Retrying in low-memory fallback mode."
-      npm install --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error
+      npm install --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1
     fi
   fi
 
@@ -589,34 +619,38 @@ main() {
   say "Generating Prisma Client"
   npx prisma generate
 
-  if yes_no "Push Prisma schema to database?" "y"; then
+  if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
+    warn "Skipping Prisma db push in low-resource mode to reduce memory pressure."
+  elif [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Push Prisma schema to database?" "y"; then
     npx prisma db push
   fi
 
-  if yes_no "Seed initial catalog, roles, settings, and admin user?" "y"; then
+  if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
+    warn "Skipping seed step in low-resource mode."
+  elif [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Seed initial catalog, roles, settings, and admin user?" "y"; then
     ADMIN_EMAIL="$admin_email" ADMIN_PASSWORD="$admin_password" ADMIN_NAME="$admin_name" ADMIN_PHONE="$admin_phone" npm run db:seed
   fi
 
   say "Building Next.js application"
-  npm run build
+  npm run build -- --no-lint
 
-  if command -v systemctl >/dev/null 2>&1 && yes_no "Create and start systemd service '$APP_NAME'?" "y"; then
+  if command -v systemctl >/dev/null 2>&1 && [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]] && ([[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Create and start systemd service '$APP_NAME'?" "y"); then
     require_command sudo
     create_systemd_service "$port"
     say "systemd service started: $APP_NAME"
   fi
 
-  if yes_no "Create nginx reverse proxy for $domain?" "n"; then
+  if [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]] && ([[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Create nginx reverse proxy for $domain?" "n"); then
     require_command sudo
     install_nginx
     server_names="$domain"
-    if [[ "$domain" != www.* ]] && yes_no "Also configure www.$domain?" "y"; then
+    if [[ "$domain" != www.* ]] && ([[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Also configure www.$domain?" "y"); then
       server_names="$server_names www.$domain"
     fi
     create_nginx_config "$server_names" "$port"
     say "nginx reverse proxy configured for $server_names"
 
-    if yes_no "Configure Let's Encrypt SSL for $server_names?" "y"; then
+    if [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Configure Let's Encrypt SSL for $server_names?" "y"; then
       ssl_email="$(prompt "Let's Encrypt email" "$admin_email")"
       setup_lets_encrypt "$domain" "$server_names" "$ssl_email"
       say "Let's Encrypt SSL configured for $server_names"
