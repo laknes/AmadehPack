@@ -14,6 +14,10 @@ warn() {
   printf "\n\033[1;33m%s\033[0m\n" "$1"
 }
 
+step() {
+  printf "\n\033[1;36m==> %s\033[0m\n" "$1"
+}
+
 is_low_resource_server() {
   if [[ -f /proc/meminfo ]]; then
     local mem_kb
@@ -489,15 +493,17 @@ main() {
   fi
 
   say "Amadeh Pack automated installer"
+  step "Starting automated installation"
+  if [[ -n "${INSTALLER_AUTO:-}" ]]; then
+    warn "Automatic mode enabled. The installer will use safe defaults and continue without prompts."
+  fi
   cd "$APP_DIR"
 
   if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
     warn "No interactive terminal detected. The installer will proceed with safe defaults and generated secrets."
   fi
 
-  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]]; then
-    export INSTALLER_AUTO=1
-  fi
+  export INSTALLER_AUTO=1
 
   if is_low_resource_server; then
     warn "Low-resource server detected. The installer will use lighter defaults and skip optional heavy steps."
@@ -505,6 +511,7 @@ main() {
   fi
 
   install_nodejs
+  step "Node.js environment prepared"
 
   local domain
   local site_url
@@ -535,12 +542,12 @@ main() {
   site_url="$(prompt "Public site URL" "https://$domain")"
   nextauth_url="$(prompt "NextAuth URL" "$site_url")"
   if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
-    port="$(prompt "Application port" "3001")"
+    port="3001"
   else
-    port="$(prompt "Application port" "3000")"
+    port="3000"
   fi
 
-  database_url="$(prompt "PostgreSQL/Neon DATABASE_URL (leave blank for local PostgreSQL)")"
+  database_url=""
   if [[ -z "$database_url" ]]; then
     warn "No database URL was provided. A local PostgreSQL instance will be configured on this server."
     db_config="$(configure_local_postgresql)"
@@ -555,56 +562,69 @@ main() {
     say "Local PostgreSQL configured for database '$db_name'."
   else
     database_url="$(normalize_database_url "$database_url")"
-    direct_url="$(prompt "DIRECT_URL for Neon non-pooled connection (optional)" "$database_url")"
-    direct_url="$(normalize_database_url "$direct_url")"
+    direct_url="$(normalize_database_url "$database_url")"
   fi
 
   nextauth_secret="$(generate_secret)"
   say "NEXTAUTH_SECRET generated automatically."
 
-  upload_dir="$(prompt "Upload directory" "./public/uploads")"
-  payment_provider="$(prompt "Default payment provider" "MOCK")"
-  enamad_url="$(prompt "Enamad profile URL" "https://enamad.ir")"
+  upload_dir="./public/uploads"
+  payment_provider="MOCK"
+  enamad_url="https://enamad.ir"
 
-  admin_email="$(prompt "Admin email" "admin@$domain")"
-  admin_name="$(prompt "Admin name" "مدیر آماده‌پک")"
-  admin_phone="$(prompt "Admin phone" "")"
+  admin_email="admin@$domain"
+  admin_name="مدیر آماده‌پک"
+  admin_phone=""
   generated_admin_password="$(generate_secret)"
-  admin_password="$(prompt_secret "Admin password" "$generated_admin_password")"
-  admin_password_confirm="$(prompt_secret "Confirm admin password" "$generated_admin_password")"
+  admin_password="$generated_admin_password"
+  admin_password_confirm="$generated_admin_password"
   [[ "$admin_password" == "$admin_password_confirm" ]] || die "Admin passwords do not match."
   [[ ${#admin_password} -ge 8 ]] || die "Admin password must be at least 8 characters."
 
   if [[ -f "$ENV_FILE" || -f "$ENV_PROD_FILE" ]]; then
-    if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
-      warn "Existing env files found. Overwriting them in low-resource mode."
-    else
-      yes_no "Existing env files found. Overwrite them?" "n" || die "Installation cancelled."
-    fi
+    warn "Existing env files found. Overwriting them automatically."
   fi
 
   say "Writing environment files"
+  step "Creating environment configuration"
+  mkdir -p "$APP_DIR/public/uploads"
+  if [[ ! -f "$ENV_FILE" && ! -f "$ENV_PROD_FILE" ]]; then
+    touch "$ENV_FILE"
+    touch "$ENV_PROD_FILE"
+  fi
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
   mkdir -p "$upload_dir"
+  chmod 755 "$APP_DIR/public" "$APP_DIR/public/uploads" 2>/dev/null || true
 
   say "Installing npm dependencies"
+  step "Installing project dependencies"
+  export CI=1
+  export NODE_OPTIONS="--max-old-space-size=1024"
   export npm_config_jobs=1
   export npm_config_audit=false
   export npm_config_fund=false
   export npm_config_progress=false
   export npm_config_loglevel=error
   export npm_config_cache="$APP_DIR/.npm-cache"
+  export npm_config_optional=false
+  export npm_config_forever=false
+  export npm_config_package_lock=true
+  export npm_config_maxsockets=1
   mkdir -p "$APP_DIR/.npm-cache"
 
-  if [[ -f package-lock.json ]]; then
-    if ! npm ci --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1; then
-      warn "Primary npm install failed. Retrying in low-memory fallback mode."
-      npm ci --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1
-    fi
+  if [[ -d node_modules ]]; then
+    warn "Existing node_modules detected. Reusing them to avoid another memory-heavy install."
   else
-    if ! npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1; then
-      warn "Primary npm install failed. Retrying in low-memory fallback mode."
-      npm install --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error --maxsockets=1
+    if [[ -f package-lock.json ]]; then
+      if ! npm ci --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --ignore-scripts --cache="$APP_DIR/.npm-cache" --maxsockets=1 --prefer-offline; then
+        warn "Primary npm ci failed. Trying the minimal dependency install path."
+        npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --ignore-scripts --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline --no-package-lock
+      fi
+    else
+      if ! npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --ignore-scripts --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline; then
+        warn "Primary npm install failed. Trying the minimal dependency install path."
+        npm install --engine-strict=false --omit=optional --legacy-peer-deps --ignore-scripts --no-audit --fund=false --progress=false --loglevel=error --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline --no-package-lock
+      fi
     fi
   fi
 
@@ -617,6 +637,7 @@ main() {
   fi
 
   say "Generating Prisma Client"
+  step "Generating Prisma client"
   npx prisma generate
 
   if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
@@ -631,16 +652,21 @@ main() {
     ADMIN_EMAIL="$admin_email" ADMIN_PASSWORD="$admin_password" ADMIN_NAME="$admin_name" ADMIN_PHONE="$admin_phone" npm run db:seed
   fi
 
-  say "Building Next.js application"
-  npm run build -- --no-lint
+  if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
+    warn "Low-resource mode: skipping the full production build to avoid memory pressure."
+  else
+    say "Building Next.js application"
+  step "Building the application"
+    npm run build -- --no-lint
+  fi
 
-  if command -v systemctl >/dev/null 2>&1 && [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]] && ([[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Create and start systemd service '$APP_NAME'?" "y"); then
+  if command -v systemctl >/dev/null 2>&1 && [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]]; then
     require_command sudo
     create_systemd_service "$port"
     say "systemd service started: $APP_NAME"
   fi
 
-  if [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]] && ([[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Create nginx reverse proxy for $domain?" "n"); then
+  if [[ -z "${INSTALLER_LOW_RESOURCE:-}" ]]; then
     require_command sudo
     install_nginx
     server_names="$domain"
@@ -651,17 +677,21 @@ main() {
     say "nginx reverse proxy configured for $server_names"
 
     if [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Configure Let's Encrypt SSL for $server_names?" "y"; then
-      ssl_email="$(prompt "Let's Encrypt email" "$admin_email")"
+      ssl_email="$admin_email"
       setup_lets_encrypt "$domain" "$server_names" "$ssl_email"
       say "Let's Encrypt SSL configured for $server_names"
     fi
   fi
 
   say "Installation completed"
+  step "Installation finished successfully"
   printf "Site URL: %s\n" "$site_url"
   printf "Admin email: %s\n" "$admin_email"
+  printf "Admin password: %s\n" "$admin_password"
   printf "App directory: %s\n" "$APP_DIR"
   printf "Env file: %s\n" "$ENV_PROD_FILE"
+  printf "Database URL: %s\n" "$database_url"
+  printf "Next step: run 'npm run dev' or start the service manually.\n"
 }
 
 main "$@"
