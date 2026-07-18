@@ -66,15 +66,15 @@ prompt_secret() {
     if [[ -n "$default" ]]; then
       printf "%s" "$default"
     else
-      printf "%s" "$(generate_secret)"
+      printf "%s" ""
     fi
     printf "\n" >&2
     return 0
   fi
 
-  read -r -s -p "$label: " value
+  read -r -s -p "$label${default:+ [$default]}: " value
   printf "\n" >&2
-  printf "%s" "$value"
+  printf "%s" "${value:-$default}"
 }
 
 yes_no() {
@@ -435,6 +435,8 @@ create_nginx_config() {
   local port="$2"
   command -v nginx >/dev/null 2>&1 || die "nginx is not installed."
 
+  sudo rm -f "/etc/nginx/sites-enabled/default"
+
   sudo tee "/etc/nginx/sites-available/$APP_NAME" >/dev/null <<EOF
 server {
     listen 80;
@@ -450,8 +452,11 @@ server {
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Host \$host;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Port \$server_port;
         proxy_cache_bypass \$http_upgrade;
+        proxy_redirect off;
     }
 }
 EOF
@@ -477,14 +482,16 @@ setup_lets_encrypt() {
     certbot_domains+=("-d" "$name")
   done
 
-  sudo certbot --nginx \
+  if ! sudo certbot --nginx \
     "${certbot_domains[@]}" \
     --non-interactive \
     --agree-tos \
     --email "$email" \
-    --redirect
+    --redirect; then
+    die "Let's Encrypt SSL setup failed. Check DNS, firewall, and port 80/443 access."
+  fi
 
-  sudo systemctl reload nginx
+  sudo systemctl reload nginx >/dev/null 2>&1 || true
 }
 
 main() {
@@ -492,18 +499,13 @@ main() {
     export INSTALLER_NON_INTERACTIVE=1
   fi
 
-  say "Amadeh Pack automated installer"
-  step "Starting automated installation"
-  if [[ -n "${INSTALLER_AUTO:-}" ]]; then
-    warn "Automatic mode enabled. The installer will use safe defaults and continue without prompts."
-  fi
+  say "Amadeh Pack manual installer"
+  step "Starting installation"
   cd "$APP_DIR"
 
   if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-    warn "No interactive terminal detected. The installer will proceed with safe defaults and generated secrets."
+    warn "No interactive terminal detected. This installer requires explicit values for all configuration fields."
   fi
-
-  export INSTALLER_AUTO=1
 
   if is_low_resource_server; then
     warn "Low-resource server detected. The installer will use lighter defaults and skip optional heavy steps."
@@ -530,6 +532,7 @@ main() {
   local admin_phone
   local server_names
   local ssl_email
+  local ssl_enabled
   local db_name
   local generated_admin_password
   local db_user
@@ -538,46 +541,58 @@ main() {
   local db_port
   local db_config
 
-  domain="$(prompt "Domain name without protocol" "example.com")"
-  site_url="$(prompt "Public site URL" "https://$domain")"
-  nextauth_url="$(prompt "NextAuth URL" "$site_url")"
-  if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
-    port="3001"
-  else
-    port="3000"
-  fi
+  domain="$(prompt "Domain name without protocol" "")"
+  [[ -n "$domain" ]] || die "Domain name is required."
 
-  database_url=""
+  site_url="$(prompt "Public site URL" "https://$domain")"
+  [[ -n "$site_url" ]] || die "Public site URL is required."
+
+  nextauth_url="$(prompt "NextAuth URL" "$site_url")"
+  [[ -n "$nextauth_url" ]] || die "NextAuth URL is required."
+
+  port="$(prompt "Application local port" "3000")"
+  [[ -n "$port" ]] || die "Application local port is required."
+
+  database_url="$(prompt "Database URL (leave blank to enter connection details manually)" "")"
   if [[ -z "$database_url" ]]; then
-    warn "No database URL was provided. A local PostgreSQL instance will be configured on this server."
-    db_config="$(configure_local_postgresql)"
-    mapfile -t db_settings <<< "$db_config"
-    db_name="${db_settings[0]}"
-    db_user="${db_settings[1]}"
-    db_password="${db_settings[2]}"
-    db_host="${db_settings[3]}"
-    db_port="${db_settings[4]}"
+    warn "Database URL was not provided. Enter the PostgreSQL connection details manually."
+    db_name="$(prompt "PostgreSQL database name" "")"
+    [[ -n "$db_name" ]] || die "PostgreSQL database name is required."
+    db_user="$(prompt "PostgreSQL username" "")"
+    [[ -n "$db_user" ]] || die "PostgreSQL username is required."
+    db_password="$(prompt_secret "PostgreSQL password" "")"
+    [[ -n "$db_password" ]] || die "PostgreSQL password is required."
+    db_host="$(prompt "PostgreSQL host" "127.0.0.1")"
+    [[ -n "$db_host" ]] || die "PostgreSQL host is required."
+    db_port="$(prompt "PostgreSQL port" "5432")"
+    [[ -n "$db_port" ]] || die "PostgreSQL port is required."
     database_url="$(build_database_url "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "public")"
     direct_url="$database_url"
-    say "Local PostgreSQL configured for database '$db_name'."
+    say "Using manually configured PostgreSQL connection."
   else
     database_url="$(normalize_database_url "$database_url")"
     direct_url="$(normalize_database_url "$database_url")"
   fi
 
-  nextauth_secret="$(generate_secret)"
-  say "NEXTAUTH_SECRET generated automatically."
+  nextauth_secret="$(prompt_secret "NextAuth secret" "")"
+  [[ -n "$nextauth_secret" ]] || die "NextAuth secret is required."
 
-  upload_dir="./public/uploads"
-  payment_provider="MOCK"
-  enamad_url="https://enamad.ir"
+  upload_dir="$(prompt "Upload directory" "./public/uploads")"
+  [[ -n "$upload_dir" ]] || die "Upload directory is required."
 
-  admin_email="admin@$domain"
-  admin_name="مدیر آماده‌پک"
-  admin_phone=""
-  generated_admin_password="$(generate_secret)"
-  admin_password="$generated_admin_password"
-  admin_password_confirm="$generated_admin_password"
+  payment_provider="$(prompt "Payment provider code" "MOCK")"
+  [[ -n "$payment_provider" ]] || die "Payment provider is required."
+
+  enamad_url="$(prompt "Enamad profile URL" "https://enamad.ir")"
+  [[ -n "$enamad_url" ]] || die "Enamad profile URL is required."
+
+  admin_email="$(prompt "Admin email" "admin@$domain")"
+  [[ -n "$admin_email" ]] || die "Admin email is required."
+  admin_name="$(prompt "Admin full name" "مدیر آماده‌پک")"
+  [[ -n "$admin_name" ]] || die "Admin full name is required."
+  admin_phone="$(prompt "Admin phone" "")"
+  admin_password="$(prompt_secret "Admin password" "")"
+  admin_password_confirm="$(prompt_secret "Confirm admin password" "")"
   [[ "$admin_password" == "$admin_password_confirm" ]] || die "Admin passwords do not match."
   [[ ${#admin_password} -ge 8 ]] || die "Admin password must be at least 8 characters."
 
@@ -642,13 +657,13 @@ main() {
 
   if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
     warn "Skipping Prisma db push in low-resource mode to reduce memory pressure."
-  elif [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Push Prisma schema to database?" "y"; then
+  elif yes_no "Push Prisma schema to database?" "y"; then
     npx prisma db push
   fi
 
   if [[ -n "${INSTALLER_LOW_RESOURCE:-}" ]]; then
     warn "Skipping seed step in low-resource mode."
-  elif [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Seed initial catalog, roles, settings, and admin user?" "y"; then
+  elif yes_no "Seed initial catalog, roles, settings, and admin user?" "y"; then
     ADMIN_EMAIL="$admin_email" ADMIN_PASSWORD="$admin_password" ADMIN_NAME="$admin_name" ADMIN_PHONE="$admin_phone" npm run db:seed
   fi
 
@@ -676,10 +691,13 @@ main() {
     create_nginx_config "$server_names" "$port"
     say "nginx reverse proxy configured for $server_names"
 
-    if [[ -n "${INSTALLER_AUTO:-}" ]] || yes_no "Configure Let's Encrypt SSL for $server_names?" "y"; then
-      ssl_email="$admin_email"
+    ssl_enabled="$(prompt "Enable HTTPS/SSL with Let's Encrypt? (y/n)" "y")"
+    if [[ "$ssl_enabled" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      ssl_email="$(prompt "Let's Encrypt email" "$admin_email")"
       setup_lets_encrypt "$domain" "$server_names" "$ssl_email"
       say "Let's Encrypt SSL configured for $server_names"
+    else
+      warn "HTTPS/SSL was not enabled. The site will remain available over HTTP only."
     fi
   fi
 
