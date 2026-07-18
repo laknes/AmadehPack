@@ -541,14 +541,17 @@ main() {
   local db_port
   local db_config
 
-  domain="$(prompt "Domain name without protocol" "")"
-  [[ -n "$domain" ]] || die "Domain name is required."
+  domain="$(prompt "Domain name without protocol (leave blank for localhost fallback)" "")"
+  if [[ -z "$domain" ]]; then
+    domain="localhost"
+    warn "No domain provided. Falling back to localhost for now."
+  fi
 
   site_url="$(prompt "Public site URL" "https://$domain")"
-  [[ -n "$site_url" ]] || die "Public site URL is required."
+  [[ -n "$site_url" ]] || site_url="http://$domain"
 
   nextauth_url="$(prompt "NextAuth URL" "$site_url")"
-  [[ -n "$nextauth_url" ]] || die "NextAuth URL is required."
+  [[ -n "$nextauth_url" ]] || nextauth_url="$site_url"
 
   port="$(prompt "Application local port" "3000")"
   [[ -n "$port" ]] || die "Application local port is required."
