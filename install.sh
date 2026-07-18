@@ -33,13 +33,28 @@ require_command() {
 
 prompt_required() {
   local label="$1"
+  local env_name="${2:-}"
+  local default_value="${3:-}"
   local value=""
 
-  while true; do
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      die "Interactive input required for '$label'."
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    if [[ -n "$env_name" ]]; then
+      value="${!env_name:-}"
+      if [[ -n "$value" ]]; then
+        printf "%s" "$value"
+        return 0
+      fi
     fi
 
+    if [[ -n "$default_value" ]]; then
+      printf "%s" "$default_value"
+      return 0
+    fi
+
+    die "Interactive input required for '$label'."
+  fi
+
+  while true; do
     read -r -p "$label: " value
     if [[ -n "$value" ]]; then
       printf "%s" "$value"
@@ -52,13 +67,28 @@ prompt_required() {
 
 prompt_secret_required() {
   local label="$1"
+  local env_name="${2:-}"
+  local default_value="${3:-}"
   local value=""
 
-  while true; do
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      die "Interactive input required for secret '$label'."
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    if [[ -n "$env_name" ]]; then
+      value="${!env_name:-}"
+      if [[ -n "$value" ]]; then
+        printf "%s" "$value"
+        return 0
+      fi
     fi
 
+    if [[ -n "$default_value" ]]; then
+      printf "%s" "$default_value"
+      return 0
+    fi
+
+    die "Interactive input required for secret '$label'."
+  fi
+
+  while true; do
     read -r -s -p "$label: " value
     printf "\n" >&2
     if [[ -n "$value" ]]; then
@@ -322,18 +352,18 @@ main() {
 
   local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email ssl_enabled db_name db_user db_password db_host db_port
 
-  domain="$(prompt_required "Domain name without protocol")"
-  site_url="$(prompt_required "Public site URL")"
-  nextauth_url="$(prompt_required "NextAuth URL")"
-  port="$(prompt_required "Application local port")"
+  domain="$(prompt_required "Domain name without protocol" "APP_DOMAIN" "localhost")"
+  site_url="$(prompt_required "Public site URL" "APP_SITE_URL" "http://localhost:3000")"
+  nextauth_url="$(prompt_required "NextAuth URL" "NEXTAUTH_URL" "http://localhost:3000/api/auth")"
+  port="$(prompt_required "Application local port" "APP_PORT" "3000")"
 
-  database_url="$(prompt_required "Database URL (or enter a blank value to use manual DB details)")"
+  database_url="$(prompt_required "Database URL (or leave blank for manual DB details)" "DATABASE_URL" "")"
   if [[ -z "$database_url" ]]; then
-    db_name="$(prompt_required "PostgreSQL database name")"
-    db_user="$(prompt_required "PostgreSQL username")"
-    db_password="$(prompt_secret_required "PostgreSQL password")"
-    db_host="$(prompt_required "PostgreSQL host")"
-    db_port="$(prompt_required "PostgreSQL port")"
+    db_name="$(prompt_required "PostgreSQL database name" "DB_NAME" "postgres")"
+    db_user="$(prompt_required "PostgreSQL username" "DB_USER" "postgres")"
+    db_password="$(prompt_secret_required "PostgreSQL password" "DB_PASSWORD" "postgres")"
+    db_host="$(prompt_required "PostgreSQL host" "DB_HOST" "127.0.0.1")"
+    db_port="$(prompt_required "PostgreSQL port" "DB_PORT" "5432")"
     database_url="$(build_database_url "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "public")"
     direct_url="$database_url"
   else
@@ -341,14 +371,14 @@ main() {
     direct_url="$database_url"
   fi
 
-  nextauth_secret="$(prompt_secret_required "NextAuth secret")"
-  upload_dir="$(prompt_required "Upload directory")"
-  payment_provider="$(prompt_required "Payment provider code")"
-  enamad_url="$(prompt_required "Enamad profile URL")"
-  admin_email="$(prompt_required "Admin email")"
-  admin_name="$(prompt_required "Admin full name")"
-  admin_phone="$(prompt_required "Admin phone")"
-  admin_password="$(prompt_secret_required "Admin password")"
+  nextauth_secret="$(prompt_secret_required "NextAuth secret" "NEXTAUTH_SECRET" "$(generate_secret)")"
+  upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "/var/www/amadeh-pack/public/uploads")"
+  payment_provider="$(prompt_required "Payment provider code" "PAYMENT_PROVIDER" "zarinpal")"
+  enamad_url="$(prompt_required "Enamad profile URL" "ENAMAD_PROFILE_URL" "")"
+  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "admin@example.com")"
+  admin_name="$(prompt_required "Admin full name" "ADMIN_NAME" "Administrator")"
+  admin_phone="$(prompt_required "Admin phone" "ADMIN_PHONE" "")"
+  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "$(generate_secret)")"
 
   mkdir -p "$APP_DIR/public/uploads"
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
