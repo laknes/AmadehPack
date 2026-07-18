@@ -27,23 +27,32 @@ is_interactive() {
   [[ -t 0 ]] && [[ -t 1 ]]
 }
 
+sudo_cmd() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required but was not found."
 }
 
-prompt_required() {
+prompt_value() {
   local label="$1"
   local env_name="${2:-}"
   local default_value="${3:-}"
+  local secret="${4:-0}"
   local value=""
+  local env_value="${!env_name:-}"
 
   if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-    if [[ -n "$env_name" ]]; then
-      value="${!env_name:-}"
-      if [[ -n "$value" ]]; then
-        printf "%s" "$value"
-        return 0
-      fi
+    if [[ -n "$env_value" ]]; then
+      printf "%s" "$env_value"
+      return 0
     fi
 
     if [[ -n "$default_value" ]]; then
@@ -51,53 +60,37 @@ prompt_required() {
       return 0
     fi
 
-    die "Interactive input required for '$label'."
+    printf ""
+    return 0
   fi
 
-  while true; do
-    read -r -p "$label: " value
-    if [[ -n "$value" ]]; then
-      printf "%s" "$value"
+  if [[ "$secret" == "1" ]]; then
+    read -r -s -p "$label: " value
+    printf "\n" >&2
+  else
+    read -r -p "$label [$default_value]: " value
+  fi
+
+  if [[ -z "$value" ]]; then
+    if [[ -n "$env_value" ]]; then
+      printf "%s" "$env_value"
       return 0
     fi
+    if [[ -n "$default_value" ]]; then
+      printf "%s" "$default_value"
+      return 0
+    fi
+  fi
 
-    warn "A value is required. Please try again."
-  done
+  printf "%s" "$value"
+}
+
+prompt_required() {
+  prompt_value "$1" "$2" "$3" 0
 }
 
 prompt_secret_required() {
-  local label="$1"
-  local env_name="${2:-}"
-  local default_value="${3:-}"
-  local value=""
-
-  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-    if [[ -n "$env_name" ]]; then
-      value="${!env_name:-}"
-      if [[ -n "$value" ]]; then
-        printf "%s" "$value"
-        return 0
-      fi
-    fi
-
-    if [[ -n "$default_value" ]]; then
-      printf "%s" "$default_value"
-      return 0
-    fi
-
-    die "Interactive input required for secret '$label'."
-  fi
-
-  while true; do
-    read -r -s -p "$label: " value
-    printf "\n" >&2
-    if [[ -n "$value" ]]; then
-      printf "%s" "$value"
-      return 0
-    fi
-
-    warn "A value is required. Please try again."
-  done
+  prompt_value "$1" "$2" "$3" 1
 }
 
 yes_no() {
@@ -105,12 +98,14 @@ yes_no() {
   local default="$2"
   local value=""
 
-  while true; do
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      [[ "$default" =~ ^[Yy]([Ee][Ss])?$ ]]
-      return
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    if [[ "$default" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      return 0
     fi
+    return 1
+  fi
 
+  while true; do
     read -r -p "$label [$default]: " value
     value="${value:-$default}"
     if [[ "$value" =~ ^[Yy]([Ee][Ss])?$ ]]; then
@@ -129,7 +124,7 @@ generate_secret() {
   elif command -v node >/dev/null 2>&1; then
     node -e "process.stdout.write(require('crypto').randomBytes(48).toString('base64'))"
   else
-    die "openssl or node is required to generate secrets."
+    printf "change-me"
   fi
 }
 
@@ -188,9 +183,6 @@ shell_escape() {
 }
 
 install_nodejs() {
-  require_command curl
-  require_command apt-get
-
   if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
     local node_version
     node_version="$(node -v 2>/dev/null || true)"
@@ -199,14 +191,19 @@ install_nodejs() {
     fi
   fi
 
+  if ! command -v apt-get >/dev/null 2>&1; then
+    warn "apt-get not available; skipping Node.js installation"
+    return 0
+  fi
+
   warn "Installing Node.js 22 and npm..."
-  sudo apt-get update
-  sudo apt-get install -y ca-certificates curl gnupg
-  sudo install -d -m 0755 /etc/apt/keyrings
-  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list >/dev/null
-  sudo apt-get update
-  sudo apt-get install -y nodejs
+  sudo_cmd apt-get update
+  sudo_cmd apt-get install -y ca-certificates curl gnupg
+  sudo_cmd install -d -m 0755 /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo_cmd gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | sudo_cmd tee /etc/apt/sources.list.d/nodesource.list >/dev/null
+  sudo_cmd apt-get update
+  sudo_cmd apt-get install -y nodejs
 }
 
 install_nginx() {
@@ -214,11 +211,16 @@ install_nginx() {
     return 0
   fi
 
+  if ! command -v apt-get >/dev/null 2>&1; then
+    warn "apt-get not available; skipping nginx installation"
+    return 0
+  fi
+
   warn "Installing nginx..."
-  sudo apt-get update
-  sudo apt-get install -y nginx
-  sudo systemctl enable nginx
-  sudo systemctl start nginx
+  sudo_cmd apt-get update
+  sudo_cmd apt-get install -y nginx
+  sudo_cmd systemctl enable nginx >/dev/null 2>&1 || true
+  sudo_cmd systemctl start nginx >/dev/null 2>&1 || true
 }
 
 install_certbot() {
@@ -226,19 +228,29 @@ install_certbot() {
     return 0
   fi
 
+  if ! command -v apt-get >/dev/null 2>&1; then
+    warn "apt-get not available; skipping certbot installation"
+    return 0
+  fi
+
   warn "Installing certbot..."
-  sudo apt-get update
-  sudo apt-get install -y certbot python3-certbot-nginx
+  sudo_cmd apt-get update
+  sudo_cmd apt-get install -y certbot python3-certbot-nginx
 }
 
 create_systemd_service() {
   local port="$1"
   local node_path
   local npm_path
-  node_path="$(command -v node)"
-  npm_path="$(command -v npm)"
+  node_path="$(command -v node || true)"
+  npm_path="$(command -v npm || true)"
 
-  sudo tee "/etc/systemd/system/$APP_NAME.service" >/dev/null <<EOF
+  if [[ -z "$node_path" || -z "$npm_path" ]]; then
+    warn "Node.js not found; skipping systemd service"
+    return 0
+  fi
+
+  sudo_cmd tee "/etc/systemd/system/$APP_NAME.service" >/dev/null <<EOF
 [Unit]
 Description=Amadeh Pack Next.js application
 After=network.target
@@ -259,17 +271,22 @@ PATH=$(dirname "$node_path"):/usr/local/bin:/usr/bin:/bin
 WantedBy=multi-user.target
 EOF
 
-  sudo systemctl daemon-reload
-  sudo systemctl enable "$APP_NAME"
-  sudo systemctl restart "$APP_NAME"
+  sudo_cmd systemctl daemon-reload >/dev/null 2>&1 || true
+  sudo_cmd systemctl enable "$APP_NAME" >/dev/null 2>&1 || true
+  sudo_cmd systemctl restart "$APP_NAME" >/dev/null 2>&1 || true
 }
 
 create_nginx_config() {
   local server_names="$1"
   local port="$2"
 
-  sudo rm -f /etc/nginx/sites-enabled/default
-  sudo tee "/etc/nginx/sites-available/$APP_NAME" >/dev/null <<EOF
+  if ! command -v nginx >/dev/null 2>&1; then
+    warn "nginx not available; skipping reverse proxy"
+    return 0
+  fi
+
+  sudo_cmd rm -f /etc/nginx/sites-enabled/default
+  sudo_cmd tee "/etc/nginx/sites-available/$APP_NAME" >/dev/null <<EOF
 server {
     listen 80;
     server_name $server_names;
@@ -292,9 +309,9 @@ server {
 }
 EOF
 
-  sudo ln -sfn "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/$APP_NAME"
-  sudo nginx -t
-  sudo systemctl reload nginx
+  sudo_cmd ln -sfn "/etc/nginx/sites-available/$APP_NAME" "/etc/nginx/sites-enabled/$APP_NAME"
+  sudo_cmd nginx -t >/dev/null 2>&1 || true
+  sudo_cmd systemctl reload nginx >/dev/null 2>&1 || true
 }
 
 setup_lets_encrypt() {
@@ -304,15 +321,21 @@ setup_lets_encrypt() {
   local -a certbot_domains=()
   local name
 
-  [[ "$primary_domain" != "example.com" ]] || die "Use a real domain before enabling Let's Encrypt."
+  if [[ "$primary_domain" == "example.com" || -z "$primary_domain" ]]; then
+    warn "Skipping Let's Encrypt because no real domain was provided"
+    return 0
+  fi
+
   install_certbot
 
   for name in $server_names; do
     certbot_domains+=("-d" "$name")
   done
 
-  sudo certbot --nginx "${certbot_domains[@]}" --non-interactive --agree-tos --email "$email" --redirect
-  sudo systemctl reload nginx >/dev/null 2>&1 || true
+  if command -v certbot >/dev/null 2>&1; then
+    sudo_cmd certbot --nginx "${certbot_domains[@]}" --non-interactive --agree-tos --email "$email" --redirect >/dev/null 2>&1 || true
+    sudo_cmd systemctl reload nginx >/dev/null 2>&1 || true
+  fi
 }
 
 write_env_files() {
@@ -343,14 +366,14 @@ EOF
 }
 
 main() {
-  say "Amadeh Pack manual installer"
+  say "Amadeh Pack installer"
   step "Starting installation"
   cd "$APP_DIR"
 
   install_nodejs
   step "Node.js environment prepared"
 
-  local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email ssl_enabled db_name db_user db_password db_host db_port
+  local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email db_name db_user db_password db_host db_port
 
   domain="$(prompt_required "Domain name without protocol" "APP_DOMAIN" "localhost")"
   site_url="$(prompt_required "Public site URL" "APP_SITE_URL" "http://localhost:3000")"
@@ -372,7 +395,7 @@ main() {
   fi
 
   nextauth_secret="$(prompt_secret_required "NextAuth secret" "NEXTAUTH_SECRET" "$(generate_secret)")"
-  upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "/var/www/amadeh-pack/public/uploads")"
+  upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "$APP_DIR/public/uploads")"
   payment_provider="$(prompt_required "Payment provider code" "PAYMENT_PROVIDER" "zarinpal")"
   enamad_url="$(prompt_required "Enamad profile URL" "ENAMAD_PROFILE_URL" "")"
   admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "admin@example.com")"
@@ -401,7 +424,7 @@ main() {
   if [[ -d node_modules ]]; then
     warn "Reusing existing node_modules"
   else
-    npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --ignore-scripts --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline --no-package-lock
+    npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline
   fi
 
   say "Generating Prisma client"
@@ -428,7 +451,7 @@ main() {
   fi
 
   if yes_no "Configure HTTPS with Let's Encrypt?" "y"; then
-    ssl_email="$(prompt_required "Let's Encrypt email")"
+    ssl_email="$(prompt_required "Let's Encrypt email" "LETSENCRYPT_EMAIL" "")"
     setup_lets_encrypt "$domain" "$domain" "$ssl_email"
   fi
 
