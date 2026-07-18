@@ -48,13 +48,21 @@ prompt() {
     return 0
   fi
 
-  if [[ -n "$default" ]]; then
-    read -r -p "$label [$default]: " value
-    printf "%s" "${value:-$default}"
-  else
-    read -r -p "$label: " value
-    printf "%s" "$value"
-  fi
+  while true; do
+    if [[ -n "$default" ]]; then
+      read -r -p "$label [$default]: " value
+      value="${value:-$default}"
+    else
+      read -r -p "$label: " value
+    fi
+
+    if [[ -n "$value" ]]; then
+      printf "%s" "$value"
+      return 0
+    fi
+
+    warn "Value is required. Please enter a non-empty value."
+  done
 }
 
 prompt_secret() {
@@ -72,9 +80,18 @@ prompt_secret() {
     return 0
   fi
 
-  read -r -s -p "$label${default:+ [$default]}: " value
-  printf "\n" >&2
-  printf "%s" "${value:-$default}"
+  while true; do
+    read -r -s -p "$label${default:+ [$default]}: " value
+    printf "\n" >&2
+    value="${value:-$default}"
+
+    if [[ -n "$value" ]]; then
+      printf "%s" "$value"
+      return 0
+    fi
+
+    warn "Value is required. Please enter a non-empty value."
+  done
 }
 
 yes_no() {
