@@ -541,19 +541,16 @@ main() {
   local db_port
   local db_config
 
-  domain="$(prompt "Domain name without protocol (leave blank for localhost fallback)" "")"
-  if [[ -z "$domain" ]]; then
-    domain="localhost"
-    warn "No domain provided. Falling back to localhost for now."
-  fi
+  domain="$(prompt "Domain name without protocol" "")"
+  [[ -n "$domain" ]] || die "Domain name is required."
 
-  site_url="$(prompt "Public site URL" "https://$domain")"
-  [[ -n "$site_url" ]] || site_url="http://$domain"
+  site_url="$(prompt "Public site URL" "")"
+  [[ -n "$site_url" ]] || die "Public site URL is required."
 
-  nextauth_url="$(prompt "NextAuth URL" "$site_url")"
-  [[ -n "$nextauth_url" ]] || nextauth_url="$site_url"
+  nextauth_url="$(prompt "NextAuth URL" "")"
+  [[ -n "$nextauth_url" ]] || die "NextAuth URL is required."
 
-  port="$(prompt "Application local port" "3000")"
+  port="$(prompt "Application local port" "")"
   [[ -n "$port" ]] || die "Application local port is required."
 
   database_url="$(prompt "Database URL (leave blank to enter connection details manually)" "")"
@@ -565,9 +562,9 @@ main() {
     [[ -n "$db_user" ]] || die "PostgreSQL username is required."
     db_password="$(prompt_secret "PostgreSQL password" "")"
     [[ -n "$db_password" ]] || die "PostgreSQL password is required."
-    db_host="$(prompt "PostgreSQL host" "127.0.0.1")"
+    db_host="$(prompt "PostgreSQL host" "")"
     [[ -n "$db_host" ]] || die "PostgreSQL host is required."
-    db_port="$(prompt "PostgreSQL port" "5432")"
+    db_port="$(prompt "PostgreSQL port" "")"
     [[ -n "$db_port" ]] || die "PostgreSQL port is required."
     database_url="$(build_database_url "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "public")"
     direct_url="$database_url"
@@ -580,18 +577,18 @@ main() {
   nextauth_secret="$(prompt_secret "NextAuth secret" "")"
   [[ -n "$nextauth_secret" ]] || die "NextAuth secret is required."
 
-  upload_dir="$(prompt "Upload directory" "./public/uploads")"
+  upload_dir="$(prompt "Upload directory" "")"
   [[ -n "$upload_dir" ]] || die "Upload directory is required."
 
-  payment_provider="$(prompt "Payment provider code" "MOCK")"
+  payment_provider="$(prompt "Payment provider code" "")"
   [[ -n "$payment_provider" ]] || die "Payment provider is required."
 
-  enamad_url="$(prompt "Enamad profile URL" "https://enamad.ir")"
+  enamad_url="$(prompt "Enamad profile URL" "")"
   [[ -n "$enamad_url" ]] || die "Enamad profile URL is required."
 
-  admin_email="$(prompt "Admin email" "admin@$domain")"
+  admin_email="$(prompt "Admin email" "")"
   [[ -n "$admin_email" ]] || die "Admin email is required."
-  admin_name="$(prompt "Admin full name" "مدیر آماده‌پک")"
+  admin_name="$(prompt "Admin full name" "")"
   [[ -n "$admin_name" ]] || die "Admin full name is required."
   admin_phone="$(prompt "Admin phone" "")"
   admin_password="$(prompt_secret "Admin password" "")"
