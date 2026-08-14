@@ -5,8 +5,6 @@ APP_NAME="amadeh-pack"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
-INSTALLER_NON_INTERACTIVE="${INSTALLER_NON_INTERACTIVE:-}"
-DEFAULT_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/amadeh_pack?schema=public"
 
 say() {
   printf "\n\033[1;32m%s\033[0m\n" "$1"
@@ -45,59 +43,27 @@ require_command() {
 
 for argument in "$@"; do
   case "$argument" in
-    --non-interactive|--yes)
-      INSTALLER_NON_INTERACTIVE=1
-      ;;
     --help|-h)
-      printf 'Usage: %s [--non-interactive|--yes]\n' "$(basename "$0")"
-      printf 'Set installer values through environment variables for unattended deployment.\n'
+      printf 'Usage: %s\n' "$(basename "$0")"
+      printf 'The installer asks for all configuration values directly.\n'
       exit 0
       ;;
     *)
-      die "Unknown argument: $argument"
+      die "This installer requires direct interactive input. Remove the argument: $argument"
       ;;
   esac
 done
 
 prompt_value() {
   local label="$1"
-  local env_name="${2:-}"
-  local default_value="${3:-}"
   local secret="${4:-0}"
   local value=""
-  local env_value="${!env_name:-}"
-
-  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-    if [[ -n "$env_value" ]]; then
-      printf "%s" "$env_value"
-      return 0
-    fi
-
-    if [[ -n "$default_value" ]]; then
-      printf "%s" "$default_value"
-      return 0
-    fi
-
-    printf ""
-    return 0
-  fi
 
   if [[ "$secret" == "1" ]]; then
     read -r -s -p "$label: " value
     printf "\n" >&2
   else
-    read -r -p "$label [$default_value]: " value
-  fi
-
-  if [[ -z "$value" ]]; then
-    if [[ -n "$env_value" ]]; then
-      printf "%s" "$env_value"
-      return 0
-    fi
-    if [[ -n "$default_value" ]]; then
-      printf "%s" "$default_value"
-      return 0
-    fi
+    read -r -p "$label: " value
   fi
 
   printf "%s" "$value"
@@ -105,19 +71,13 @@ prompt_value() {
 
 prompt_required() {
   local label="$1"
-  local env_name="${2:-}"
-  local default_value="${3:-}"
   local value=""
 
   while true; do
-    value="$(prompt_value "$label" "$env_name" "$default_value" 0)"
+    value="$(prompt_value "$label" "" "" 0)"
     if [[ -n "$value" ]]; then
       printf "%s" "$value"
       return 0
-    fi
-
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      die "A value is required for '$label'."
     fi
 
     warn "A value is required. Please try again."
@@ -126,19 +86,13 @@ prompt_required() {
 
 prompt_secret_required() {
   local label="$1"
-  local env_name="${2:-}"
-  local default_value="${3:-}"
   local value=""
 
   while true; do
-    value="$(prompt_value "$label" "$env_name" "$default_value" 1)"
+    value="$(prompt_value "$label" "" "" 1)"
     if [[ -n "$value" ]]; then
       printf "%s" "$value"
       return 0
-    fi
-
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      die "A value is required for '$label'."
     fi
 
     warn "A value is required. Please try again."
@@ -147,19 +101,10 @@ prompt_secret_required() {
 
 yes_no() {
   local label="$1"
-  local default="$2"
   local value=""
 
-  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-    if [[ "$default" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-      return 0
-    fi
-    return 1
-  fi
-
   while true; do
-    read -r -p "$label [$default]: " value
-    value="${value:-$default}"
+    read -r -p "$label [yes/no]: " value
     if [[ "$value" =~ ^[Yy]([Ee][Ss])?$ ]]; then
       return 0
     elif [[ "$value" =~ ^[Nn]([Oo])?$ ]]; then
@@ -206,7 +151,17 @@ normalize_database_url() {
 }
 
 require_database_url() {
-  printf "%s" "$(normalize_database_url "$DEFAULT_DATABASE_URL")"
+  local value=""
+
+  while true; do
+    value="$(prompt_required "PostgreSQL DATABASE_URL")"
+    if [[ "$value" == postgresql://* || "$value" == postgres://* ]]; then
+      printf "%s" "$(normalize_database_url "$value")"
+      return 0
+    fi
+
+    warn "DATABASE_URL must start with postgresql:// or postgres://."
+  done
 }
 
 build_database_url() {
@@ -433,28 +388,28 @@ main() {
   local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email db_name db_user db_password db_host db_port
 
   step "Domain and SSL settings"
-  domain="$(prompt_required "Domain name without protocol" "APP_DOMAIN" "localhost")"
-  site_url="$(prompt_required "Public site URL" "APP_SITE_URL" "http://localhost:3000")"
-  nextauth_url="$(prompt_required "NextAuth URL" "NEXTAUTH_URL" "$site_url")"
-  port="$(prompt_required "Application local port" "APP_PORT" "3000")"
+  domain="$(prompt_required "Domain name without protocol")"
+  site_url="$(prompt_required "Public site URL")"
+  nextauth_url="$(prompt_required "NextAuth URL")"
+  port="$(prompt_required "Application local port")"
 
   step "Database settings"
   database_url="$(require_database_url)"
-  direct_url="$(prompt_required "Direct database URL (optional)" "DIRECT_URL" "$database_url")"
+  direct_url="$(prompt_required "Direct database URL")"
   if [[ "$direct_url" != postgresql://* && "$direct_url" != postgres://* ]]; then
     die "DIRECT_URL must start with postgresql:// or postgres://."
   fi
   direct_url="$(normalize_database_url "$direct_url")"
 
-  nextauth_secret="$(prompt_secret_required "NextAuth secret" "NEXTAUTH_SECRET" "$(generate_secret)")"
-  upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "$APP_DIR/public/uploads")"
-  payment_provider="$(prompt_required "Payment provider code" "PAYMENT_PROVIDER" "zarinpal")"
-  enamad_url="$(prompt_value "Enamad profile URL (optional)" "ENAMAD_PROFILE_URL" "")"
+  nextauth_secret="$(prompt_secret_required "NextAuth secret")"
+  upload_dir="$(prompt_required "Upload directory")"
+  payment_provider="$(prompt_required "Payment provider code")"
+  enamad_url="$(prompt_value "Enamad profile URL (optional)")"
   step "Administrator account"
-  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "admin@kraftpack.local")"
-  admin_name="$(prompt_required "Admin full name" "ADMIN_NAME" "Administrator")"
-  admin_phone="$(prompt_value "Admin phone (optional)" "ADMIN_PHONE" "")"
-  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "$(generate_secret)")"
+  admin_email="$(prompt_required "Admin email")"
+  admin_name="$(prompt_required "Admin full name")"
+  admin_phone="$(prompt_value "Admin phone (optional)")"
+  admin_password="$(prompt_secret_required "Admin password")"
 
   mkdir -p "$APP_DIR/public/uploads"
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
