@@ -204,6 +204,24 @@ normalize_database_url() {
   printf "%s" "$url"
 }
 
+require_database_url() {
+  local value=""
+
+  while true; do
+    value="$(prompt_value "PostgreSQL DATABASE_URL" "DATABASE_URL" "")"
+    if [[ "$value" == postgresql://* || "$value" == postgres://* ]]; then
+      printf "%s" "$(normalize_database_url "$value")"
+      return 0
+    fi
+
+    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+      die "A valid DATABASE_URL is required. It must start with postgresql:// or postgres://."
+    fi
+
+    warn "Invalid DATABASE_URL. It must start with postgresql:// or postgres://."
+  done
+}
+
 build_database_url() {
   local db_user="$1"
   local db_password="$2"
@@ -434,23 +452,12 @@ main() {
   port="$(prompt_required "Application local port" "APP_PORT" "3000")"
 
   step "Database settings"
-  database_url="$(prompt_value "Database URL (leave blank for manual PostgreSQL details)" "DATABASE_URL" "")"
-  if [[ -z "$database_url" ]]; then
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]]; then
-      die "DATABASE_URL is required in non-interactive mode."
-    fi
-    db_name="$(prompt_required "PostgreSQL database name" "DB_NAME" "postgres")"
-    db_user="$(prompt_required "PostgreSQL username" "DB_USER" "postgres")"
-    db_password="$(prompt_secret_required "PostgreSQL password" "DB_PASSWORD" "postgres")"
-    db_host="$(prompt_required "PostgreSQL host" "DB_HOST" "127.0.0.1")"
-    db_port="$(prompt_required "PostgreSQL port" "DB_PORT" "5432")"
-    database_url="$(build_database_url "$db_user" "$db_password" "$db_host" "$db_port" "$db_name" "public")"
-    direct_url="$database_url"
-  else
-    database_url="$(normalize_database_url "$database_url")"
-    direct_url="$(prompt_required "Direct database URL (optional)" "DIRECT_URL" "$database_url")"
-    direct_url="$(normalize_database_url "$direct_url")"
+  database_url="$(require_database_url)"
+  direct_url="$(prompt_required "Direct database URL (optional)" "DIRECT_URL" "$database_url")"
+  if [[ "$direct_url" != postgresql://* && "$direct_url" != postgres://* ]]; then
+    die "DIRECT_URL must start with postgresql:// or postgres://."
   fi
+  direct_url="$(normalize_database_url "$direct_url")"
 
   nextauth_secret="$(prompt_secret_required "NextAuth secret" "NEXTAUTH_SECRET" "$(generate_secret)")"
   upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "$APP_DIR/public/uploads")"
