@@ -457,10 +457,10 @@ main() {
   payment_provider="$(prompt_required "Payment provider code" "PAYMENT_PROVIDER" "zarinpal")"
   enamad_url="$(prompt_value "Enamad profile URL (optional)" "ENAMAD_PROFILE_URL" "")"
   step "Administrator account"
-  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "")"
+  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "admin@kraftpack.local")"
   admin_name="$(prompt_required "Admin full name" "ADMIN_NAME" "Administrator")"
   admin_phone="$(prompt_value "Admin phone (optional)" "ADMIN_PHONE" "")"
-  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "")"
+  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "$(generate_secret)")"
 
   mkdir -p "$APP_DIR/public/uploads"
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
@@ -529,6 +529,8 @@ main() {
     systemctl is-active --quiet "$APP_NAME" || die "The $APP_NAME systemd service did not start successfully."
   fi
   say "Installation completed"
+  printf "Admin email: %s\n" "$admin_email"
+  printf "Admin password: %s\n" "$admin_password"
 }
 
 main "$@"
