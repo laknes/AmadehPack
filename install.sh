@@ -56,25 +56,30 @@ done
 
 prompt_value() {
   local label="$1"
-  local secret="${4:-0}"
+  local default_value="${2:-}"
+  local secret="${3:-0}"
   local value=""
 
   if [[ "$secret" == "1" ]]; then
     read -r -s -p "$label: " value
     printf "\n" >&2
   else
-    read -r -p "$label: " value
+    read -r -p "$label [$default_value]: " value
   fi
 
+  if [[ -z "$value" && -n "$default_value" ]]; then
+    value="$default_value"
+  fi
   printf "%s" "$value"
 }
 
 prompt_required() {
   local label="$1"
+  local default_value="${2:-}"
   local value=""
 
   while true; do
-    value="$(prompt_value "$label" "" "" 0)"
+    value="$(prompt_value "$label" "$default_value" 0)"
     if [[ -n "$value" ]]; then
       printf "%s" "$value"
       return 0
@@ -86,10 +91,11 @@ prompt_required() {
 
 prompt_secret_required() {
   local label="$1"
+  local default_value="${2:-}"
   local value=""
 
   while true; do
-    value="$(prompt_value "$label" "" "" 1)"
+    value="$(prompt_value "$label" "$default_value" 1)"
     if [[ -n "$value" ]]; then
       printf "%s" "$value"
       return 0
@@ -101,10 +107,12 @@ prompt_secret_required() {
 
 yes_no() {
   local label="$1"
+  local default="${2:-n}"
   local value=""
 
   while true; do
-    read -r -p "$label [yes/no]: " value
+    read -r -p "$label [$default]: " value
+    value="${value:-$default}"
     if [[ "$value" =~ ^[Yy]([Ee][Ss])?$ ]]; then
       return 0
     elif [[ "$value" =~ ^[Nn]([Oo])?$ ]]; then
@@ -152,9 +160,10 @@ normalize_database_url() {
 
 require_database_url() {
   local value=""
+  local default_url="postgresql://postgres:postgres@127.0.0.1:5432/amadeh_pack?schema=public"
 
   while true; do
-    value="$(prompt_required "PostgreSQL DATABASE_URL")"
+    value="$(prompt_required "PostgreSQL DATABASE_URL" "$default_url")"
     if [[ "$value" == postgresql://* || "$value" == postgres://* ]]; then
       printf "%s" "$(normalize_database_url "$value")"
       return 0
@@ -388,28 +397,28 @@ main() {
   local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email db_name db_user db_password db_host db_port
 
   step "Domain and SSL settings"
-  domain="$(prompt_required "Domain name without protocol")"
-  site_url="$(prompt_required "Public site URL")"
-  nextauth_url="$(prompt_required "NextAuth URL")"
-  port="$(prompt_required "Application local port")"
+  domain="$(prompt_required "Domain name without protocol" "localhost")"
+  site_url="$(prompt_required "Public site URL" "http://localhost:3000")"
+  nextauth_url="$(prompt_required "NextAuth URL" "$site_url")"
+  port="$(prompt_required "Application local port" "3000")"
 
   step "Database settings"
   database_url="$(require_database_url)"
-  direct_url="$(prompt_required "Direct database URL")"
+  direct_url="$(prompt_required "Direct database URL" "$database_url")"
   if [[ "$direct_url" != postgresql://* && "$direct_url" != postgres://* ]]; then
     die "DIRECT_URL must start with postgresql:// or postgres://."
   fi
   direct_url="$(normalize_database_url "$direct_url")"
 
-  nextauth_secret="$(prompt_secret_required "NextAuth secret")"
-  upload_dir="$(prompt_required "Upload directory")"
-  payment_provider="$(prompt_required "Payment provider code")"
-  enamad_url="$(prompt_value "Enamad profile URL (optional)")"
+  nextauth_secret="$(prompt_secret_required "NextAuth secret" "$(generate_secret)")"
+  upload_dir="$(prompt_required "Upload directory" "$APP_DIR/public/uploads")"
+  payment_provider="$(prompt_required "Payment provider code" "MOCK")"
+  enamad_url="$(prompt_value "Enamad profile URL (optional)" "https://enamad.ir")"
   step "Administrator account"
-  admin_email="$(prompt_required "Admin email")"
-  admin_name="$(prompt_required "Admin full name")"
-  admin_phone="$(prompt_value "Admin phone (optional)")"
-  admin_password="$(prompt_secret_required "Admin password")"
+  admin_email="$(prompt_required "Admin email" "admin@kraftpack.local")"
+  admin_name="$(prompt_required "Admin full name" "Administrator")"
+  admin_phone="$(prompt_value "Admin phone (optional)" "")"
+  admin_password="$(prompt_secret_required "Admin password" "$(generate_secret)")"
 
   mkdir -p "$APP_DIR/public/uploads"
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
@@ -465,7 +474,7 @@ main() {
   fi
 
   if yes_no "Configure HTTPS with Let's Encrypt?" "n"; then
-    ssl_email="$(prompt_required "Let's Encrypt email" "LETSENCRYPT_EMAIL" "")"
+    ssl_email="$(prompt_required "Let's Encrypt email" "$admin_email")"
     if [[ -n "$ssl_email" ]]; then
       setup_lets_encrypt "$domain" "$domain" "$ssl_email"
     else
