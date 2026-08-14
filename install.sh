@@ -6,6 +6,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
 INSTALLER_NON_INTERACTIVE="${INSTALLER_NON_INTERACTIVE:-}"
+DEFAULT_DATABASE_URL="${DEFAULT_DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/amadeh_pack?schema=public}"
 
 say() {
   printf "\n\033[1;32m%s\033[0m\n" "$1"
@@ -205,21 +206,13 @@ normalize_database_url() {
 }
 
 require_database_url() {
-  local value=""
+  local value="${DATABASE_URL:-$DEFAULT_DATABASE_URL}"
 
-  while true; do
-    value="$(prompt_value "PostgreSQL DATABASE_URL" "DATABASE_URL" "")"
-    if [[ "$value" == postgresql://* || "$value" == postgres://* ]]; then
-      printf "%s" "$(normalize_database_url "$value")"
-      return 0
-    fi
+  if [[ "$value" != postgresql://* && "$value" != postgres://* ]]; then
+    die "DATABASE_URL must start with postgresql:// or postgres://."
+  fi
 
-    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
-      die "A valid DATABASE_URL is required. It must start with postgresql:// or postgres://."
-    fi
-
-    warn "Invalid DATABASE_URL. It must start with postgresql:// or postgres://."
-  done
+  printf "%s" "$(normalize_database_url "$value")"
 }
 
 build_database_url() {
@@ -522,7 +515,7 @@ main() {
     say "nginx reverse proxy configured for $server_names"
   fi
 
-  if yes_no "Configure HTTPS with Let's Encrypt?" "y"; then
+  if yes_no "Configure HTTPS with Let's Encrypt?" "n"; then
     ssl_email="$(prompt_required "Let's Encrypt email" "LETSENCRYPT_EMAIL" "")"
     if [[ -n "$ssl_email" ]]; then
       setup_lets_encrypt "$domain" "$domain" "$ssl_email"
