@@ -197,8 +197,9 @@ NODE
 
 shell_escape() {
   local value="$1"
-  value="${value//\'/\'\\\'\'}"
-  printf "'%s'" "$value"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf "%s" "$value"
 }
 
 install_nodejs() {
