@@ -6,7 +6,6 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
 INSTALLER_NON_INTERACTIVE="${INSTALLER_NON_INTERACTIVE:-}"
-DEFAULT_DATABASE_URL="${DEFAULT_DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/amadeh_pack?schema=public}"
 
 say() {
   printf "\n\033[1;32m%s\033[0m\n" "$1"
@@ -206,13 +205,21 @@ normalize_database_url() {
 }
 
 require_database_url() {
-  local value="${DATABASE_URL:-$DEFAULT_DATABASE_URL}"
+  local value=""
 
-  if [[ "$value" != postgresql://* && "$value" != postgres://* ]]; then
-    die "DATABASE_URL must start with postgresql:// or postgres://."
+  if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+    die "Direct DATABASE_URL input is required. Run install.sh interactively."
   fi
 
-  printf "%s" "$(normalize_database_url "$value")"
+  while true; do
+    read -r -p "PostgreSQL DATABASE_URL: " value
+    if [[ "$value" == postgresql://* || "$value" == postgres://* ]]; then
+      printf "%s" "$(normalize_database_url "$value")"
+      return 0
+    fi
+
+    warn "DATABASE_URL must start with postgresql:// or postgres://."
+  done
 }
 
 build_database_url() {
