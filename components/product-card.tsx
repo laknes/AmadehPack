@@ -37,13 +37,13 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="mt-4 grid gap-2 text-xs text-[#6F6256]">
         {product.minOrder && (
           <span className="flex items-center gap-2">
-            <PackageCheck size={15} className="text-[#005D21]" />
+            <PackageCheck size={15} className="text-[#5C6B3C]" />
             حداقل سفارش: {product.minOrder}
           </span>
         )}
         {product.leadTime && (
           <span className="flex items-center gap-2">
-            <Clock3 size={15} className="text-[#FF8A1F]" />
+            <Clock3 size={15} className="text-[#8B5A2B]" />
             {product.leadTime}
           </span>
         )}

@@ -13,6 +13,7 @@ const links = [
   ["اینماد", "/admin/enamad", BadgeCheck],
   ["بنرها", "/admin/banners", Images],
   ["نظرات", "/admin/reviews", MessageSquare],
+  ["تیکت‌های تماس", "/admin/contact-tickets", MessageSquare],
   ["بلاگ", "/admin/blog", Newspaper],
   ["تنظیمات", "/admin/settings", Settings],
   ["نقش‌ها", "/admin/roles", KeyRound],
@@ -24,7 +25,7 @@ export function AdminShell({ title, children }: { title: string; children: React
     <section className="container section">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <p className="text-[#B8874B]">مدیریت آماده‌پک</p>
+          <p className="text-[#B8874B]">مدیریت کرافت پک</p>
           <h1 className="mt-2 text-4xl font-black">{title}</h1>
         </div>
         <Link href="/" className="btn">بازگشت سایت</Link>

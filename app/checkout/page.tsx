@@ -94,7 +94,7 @@ export default function CheckoutPage() {
           <h2 className="text-xl font-bold">روش ارسال</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {shippingMethods.map((method) => (
-              <label key={method.id} className={`cursor-pointer rounded-3xl border p-4 transition ${selectedShippingId === method.id ? "border-[#FF8A1F] bg-[#FFF4DF]" : "border-[#B8874B]/20 bg-white"}`}>
+              <label key={method.id} className={`cursor-pointer rounded-3xl border p-4 transition ${selectedShippingId === method.id ? "border-[#8B5A2B] bg-[#F7F1E3]" : "border-[#B8874B]/20 bg-white"}`}>
                 <span className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-2 font-bold">
                     <input type="radio" name="shippingMethod" checked={selectedShippingId === method.id} onChange={() => setSelectedShippingId(method.id)} />
@@ -111,7 +111,7 @@ export default function CheckoutPage() {
           <h2 className="text-xl font-bold">روش پرداخت</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {paymentGateways.map((gateway) => (
-              <label key={gateway.provider} className={`cursor-pointer rounded-3xl border p-4 transition ${selectedProvider === gateway.provider ? "border-[#FF8A1F] bg-[#FFF4DF]" : "border-[#B8874B]/20 bg-white"}`}>
+              <label key={gateway.provider} className={`cursor-pointer rounded-3xl border p-4 transition ${selectedProvider === gateway.provider ? "border-[#8B5A2B] bg-[#F7F1E3]" : "border-[#B8874B]/20 bg-white"}`}>
                 <span className="flex items-center gap-2 font-bold">
                   <input type="radio" name="paymentProvider" checked={selectedProvider === gateway.provider} onChange={() => setSelectedProvider(gateway.provider)} />
                   {gateway.title}

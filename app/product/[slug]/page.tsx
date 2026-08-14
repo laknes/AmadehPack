@@ -52,7 +52,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               ["کنترل قبل ارسال", "کیفیت", ShieldCheck],
             ].map(([value, label, Icon]) => (
               <GlassPanel key={String(label)} className="rounded-3xl p-4">
-                <Icon className="mb-3 text-[#FF8A1F]" size={22} />
+                <Icon className="mb-3 text-[#8B5A2B]" size={22} />
                 <strong className="block">{value as string}</strong>
                 <span className="mt-1 block text-sm text-[#6F6256]">{label as string}</span>
               </GlassPanel>
@@ -77,7 +77,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
         </GlassPanel>
         <GlassPanel className="rounded-[28px] p-6">
-          <Factory className="mb-4 text-[#FF8A1F]" size={28} />
+                <Factory className="mb-4 text-[#8B5A2B]" size={28} />
           <h2 className="text-2xl font-black">کاربردهای پیشنهادی</h2>
           <div className="mt-5 flex flex-wrap gap-2">
             {product.suitableFor.map((item) => (

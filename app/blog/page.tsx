@@ -6,7 +6,7 @@ export const metadata = { title: "مجله" };
 export default function BlogPage() {
   return (
     <section className="container section">
-      <h1 className="mb-8 text-4xl font-black">مجله آماده‌پک</h1>
+      <h1 className="mb-8 text-4xl font-black">مجله کرافت پک</h1>
       <div className="grid gap-5 md:grid-cols-3">
         {posts.map((post) => (
           <Link key={post.slug} href={`/blog/${post.slug}`} className="glass rounded-[28px] p-6 transition hover:-translate-y-1">

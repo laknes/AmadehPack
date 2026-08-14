@@ -55,7 +55,7 @@ export function HeroSlider() {
               key={item.id}
               aria-label={`اسلاید ${index + 1}`}
               onClick={() => setActive(index)}
-              className={`h-2 rounded-full transition-all ${index === active ? "w-8 bg-[#FF8A1F]" : "w-2 bg-[#B8874B]/35 hover:bg-[#B8874B]"}`}
+              className={`h-2 rounded-full transition-all ${index === active ? "w-8 bg-[#8B5A2B]" : "w-2 bg-[#B8874B]/35 hover:bg-[#B8874B]"}`}
             />
           ))}
         </div>

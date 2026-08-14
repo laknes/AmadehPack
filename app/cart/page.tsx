@@ -24,7 +24,7 @@ export default function CartPage() {
         <div className="grid gap-4">
           {items.length === 0 && (
             <div className="glass rounded-[28px] p-8 text-center">
-              <ShoppingBag className="mx-auto text-[#FF8A1F]" size={34} />
+              <ShoppingBag className="mx-auto text-[#8B5A2B]" size={34} />
               <h2 className="mt-4 text-2xl font-black">سبد خرید خالی است</h2>
               <p className="mt-3 text-[#6F6256]">از فروشگاه محصول انتخاب کنید یا برای سفارش عمده استعلام بگیرید.</p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">

@@ -10,13 +10,13 @@ import { getSiteSettings } from "@/lib/site-settings";
 
 export const metadata: Metadata = {
   title: {
-    default: "آماده‌پک | فروشگاه ظروف و بسته‌بندی لوکس",
-    template: "%s | آماده‌پک",
+    default: "کرافت پک | فروشگاه ظروف و بسته‌بندی",
+    template: "%s | کرافت پک",
   },
   description: "فروشگاه حرفه‌ای ظروف کاغذی، کرافت، درب و بسته‌بندی غذای آماده با تجربه سه‌بعدی و پنل مدیریتی.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   openGraph: {
-    title: "آماده‌پک",
+    title: "کرافت پک",
     description: "ظروف و بسته‌بندی غذای آماده با کیفیت حرفه‌ای.",
     type: "website",
     locale: "fa_IR",

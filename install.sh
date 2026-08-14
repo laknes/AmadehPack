@@ -5,6 +5,7 @@ APP_NAME="amadeh-pack"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
+INSTALLER_NON_INTERACTIVE="${INSTALLER_NON_INTERACTIVE:-}"
 
 say() {
   printf "\n\033[1;32m%s\033[0m\n" "$1"
@@ -40,6 +41,22 @@ sudo_cmd() {
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required but was not found."
 }
+
+for argument in "$@"; do
+  case "$argument" in
+    --non-interactive|--yes)
+      INSTALLER_NON_INTERACTIVE=1
+      ;;
+    --help|-h)
+      printf 'Usage: %s [--non-interactive|--yes]\n' "$(basename "$0")"
+      printf 'Set installer values through environment variables for unattended deployment.\n'
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $argument"
+      ;;
+  esac
+done
 
 prompt_value() {
   local label="$1"
@@ -86,11 +103,45 @@ prompt_value() {
 }
 
 prompt_required() {
-  prompt_value "$1" "$2" "$3" 0
+  local label="$1"
+  local env_name="${2:-}"
+  local default_value="${3:-}"
+  local value=""
+
+  while true; do
+    value="$(prompt_value "$label" "$env_name" "$default_value" 0)"
+    if [[ -n "$value" ]]; then
+      printf "%s" "$value"
+      return 0
+    fi
+
+    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+      die "A value is required for '$label'."
+    fi
+
+    warn "A value is required. Please try again."
+  done
 }
 
 prompt_secret_required() {
-  prompt_value "$1" "$2" "$3" 1
+  local label="$1"
+  local env_name="${2:-}"
+  local default_value="${3:-}"
+  local value=""
+
+  while true; do
+    value="$(prompt_value "$label" "$env_name" "$default_value" 1)"
+    if [[ -n "$value" ]]; then
+      printf "%s" "$value"
+      return 0
+    fi
+
+    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]] || ! is_interactive; then
+      die "A value is required for '$label'."
+    fi
+
+    warn "A value is required. Please try again."
+  done
 }
 
 yes_no() {
@@ -177,9 +228,8 @@ NODE
 
 shell_escape() {
   local value="$1"
-  value="${value//\\/\\\\}"
-  value="${value//\"/\\\"}"
-  printf "%s" "$value"
+  value="${value//\'/\'\\\'\'}"
+  printf "'%s'" "$value"
 }
 
 install_nodejs() {
@@ -371,17 +421,24 @@ main() {
   cd "$APP_DIR"
 
   install_nodejs
+  require_command node
+  require_command npm
   step "Node.js environment prepared"
 
   local domain site_url nextauth_url database_url direct_url nextauth_secret upload_dir payment_provider enamad_url port admin_email admin_password admin_name admin_phone server_names ssl_email db_name db_user db_password db_host db_port
 
+  step "Domain and SSL settings"
   domain="$(prompt_required "Domain name without protocol" "APP_DOMAIN" "localhost")"
   site_url="$(prompt_required "Public site URL" "APP_SITE_URL" "http://localhost:3000")"
-  nextauth_url="$(prompt_required "NextAuth URL" "NEXTAUTH_URL" "http://localhost:3000/api/auth")"
+  nextauth_url="$(prompt_required "NextAuth URL" "NEXTAUTH_URL" "$site_url")"
   port="$(prompt_required "Application local port" "APP_PORT" "3000")"
 
-  database_url="$(prompt_required "Database URL (or leave blank for manual DB details)" "DATABASE_URL" "")"
+  step "Database settings"
+  database_url="$(prompt_value "Database URL (leave blank for manual PostgreSQL details)" "DATABASE_URL" "")"
   if [[ -z "$database_url" ]]; then
+    if [[ -n "${INSTALLER_NON_INTERACTIVE:-}" ]]; then
+      die "DATABASE_URL is required in non-interactive mode."
+    fi
     db_name="$(prompt_required "PostgreSQL database name" "DB_NAME" "postgres")"
     db_user="$(prompt_required "PostgreSQL username" "DB_USER" "postgres")"
     db_password="$(prompt_secret_required "PostgreSQL password" "DB_PASSWORD" "postgres")"
@@ -391,17 +448,19 @@ main() {
     direct_url="$database_url"
   else
     database_url="$(normalize_database_url "$database_url")"
-    direct_url="$database_url"
+    direct_url="$(prompt_required "Direct database URL (optional)" "DIRECT_URL" "$database_url")"
+    direct_url="$(normalize_database_url "$direct_url")"
   fi
 
   nextauth_secret="$(prompt_secret_required "NextAuth secret" "NEXTAUTH_SECRET" "$(generate_secret)")"
   upload_dir="$(prompt_required "Upload directory" "UPLOAD_DIR" "$APP_DIR/public/uploads")"
   payment_provider="$(prompt_required "Payment provider code" "PAYMENT_PROVIDER" "zarinpal")"
-  enamad_url="$(prompt_required "Enamad profile URL" "ENAMAD_PROFILE_URL" "")"
-  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "admin@example.com")"
+  enamad_url="$(prompt_value "Enamad profile URL (optional)" "ENAMAD_PROFILE_URL" "")"
+  step "Administrator account"
+  admin_email="$(prompt_required "Admin email" "ADMIN_EMAIL" "")"
   admin_name="$(prompt_required "Admin full name" "ADMIN_NAME" "Administrator")"
-  admin_phone="$(prompt_required "Admin phone" "ADMIN_PHONE" "")"
-  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "$(generate_secret)")"
+  admin_phone="$(prompt_value "Admin phone (optional)" "ADMIN_PHONE" "")"
+  admin_password="$(prompt_secret_required "Admin password" "ADMIN_PASSWORD" "")"
 
   mkdir -p "$APP_DIR/public/uploads"
   write_env_files "$database_url" "$direct_url" "$nextauth_url" "$nextauth_secret" "$site_url" "$upload_dir" "$payment_provider" "$enamad_url" "$port"
@@ -423,6 +482,8 @@ main() {
 
   if [[ -d node_modules ]]; then
     warn "Reusing existing node_modules"
+  elif [[ -f package-lock.json ]]; then
+    npm ci --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --cache="$APP_DIR/.npm-cache" --maxsockets=1
   else
     npm install --engine-strict=false --omit=optional --legacy-peer-deps --no-audit --fund=false --progress=false --loglevel=error --cache="$APP_DIR/.npm-cache" --maxsockets=1 --package-lock=false --prefer-offline
   fi
@@ -440,6 +501,10 @@ main() {
 
   npm run build -- --no-lint
 
+  if [[ ! -d "$upload_dir" ]]; then
+    mkdir -p "$upload_dir"
+  fi
+
   if yes_no "Install nginx reverse proxy?" "y"; then
     install_nginx
     server_names="$domain"
@@ -452,10 +517,17 @@ main() {
 
   if yes_no "Configure HTTPS with Let's Encrypt?" "y"; then
     ssl_email="$(prompt_required "Let's Encrypt email" "LETSENCRYPT_EMAIL" "")"
-    setup_lets_encrypt "$domain" "$domain" "$ssl_email"
+    if [[ -n "$ssl_email" ]]; then
+      setup_lets_encrypt "$domain" "$domain" "$ssl_email"
+    else
+      warn "Skipping Let's Encrypt because LETSENCRYPT_EMAIL was not provided"
+    fi
   fi
 
   create_systemd_service "$port"
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
+    systemctl is-active --quiet "$APP_NAME" || die "The $APP_NAME systemd service did not start successfully."
+  fi
   say "Installation completed"
 }
 

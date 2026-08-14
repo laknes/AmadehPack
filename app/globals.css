@@ -6,17 +6,17 @@
   --surface: #fffaf1;
   --surface-soft: #f6ead9;
   --line: rgba(74, 47, 27, 0.16);
-  --brand: #005d21;
-  --brand-light: #2ecb68;
-  --orange: #ff8a1f;
+  --brand: #5c6b3c;
+  --brand-light: #8a9a5b;
+  --orange: #b9832e;
   --kraft: #b8874b;
   --kraft-deep: #4a2f1b;
-  --cream: #fff4df;
+  --cream: #f7f1e3;
   --ink: #1c1108;
   --muted: #6f6256;
   --font-ui: "Vazirmatn Variable", Vazirmatn, Tahoma, Arial, sans-serif;
   --font-display: Lalezar, "Vazirmatn Variable", Tahoma, Arial, sans-serif;
-  --primary-button-color: var(--orange);
+  --primary-button-color: #8b5a2b;
   --primary-button-text-color: #1c1108;
   --button-color: #ffffff;
   --button-text-color: var(--ink);
@@ -99,8 +99,8 @@ h2,
 
 .btn:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 138, 31, 0.58);
-  background: #fff4df;
+  border-color: rgba(139, 90, 43, 0.58);
+  background: #f7f1e3;
 }
 
 .btn-primary {
@@ -122,8 +122,8 @@ h2,
 }
 
 .field:focus {
-  border-color: rgba(255, 138, 31, 0.68);
-  box-shadow: 0 0 0 4px rgba(255, 138, 31, 0.13);
+  border-color: rgba(139, 90, 43, 0.68);
+  box-shadow: 0 0 0 4px rgba(139, 90, 43, 0.13);
 }
 
 .section {

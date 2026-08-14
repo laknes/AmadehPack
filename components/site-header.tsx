@@ -28,10 +28,10 @@ export function SiteHeader() {
       <div className="container">
         <div className="flex min-h-20 items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-2xl bg-[#FF8A1F] font-black text-[#1c1108]">AP</span>
+            <span className="grid size-11 place-items-center rounded-2xl bg-[#8B5A2B] font-black text-[#FFF4DF]">KP</span>
             <span>
-              <strong className="block text-lg">آماده‌پک</strong>
-              <small className="text-[#6F6256]">Luxury Food Packaging</small>
+              <strong className="block text-lg">کرافت پک</strong>
+              <small className="text-[#6F6256]">Kraft Food Packaging</small>
             </span>
           </Link>
           <nav className="hidden items-center gap-1 lg:flex">
@@ -46,7 +46,7 @@ export function SiteHeader() {
             <Link className="btn" href="/wishlist" aria-label="علاقه‌مندی‌ها"><Heart size={18} /></Link>
             <Link className="btn relative" href="/cart" aria-label="سبد خرید">
               <ShoppingBag size={18} />
-              {count > 0 && <span className="absolute -top-2 -left-2 grid size-6 place-items-center rounded-full bg-[#FF8A1F] text-xs font-bold text-[#1c1108]">{count}</span>}
+              {count > 0 && <span className="absolute -top-2 -left-2 grid size-6 place-items-center rounded-full bg-[#8B5A2B] text-xs font-bold text-[#FFF4DF]">{count}</span>}
             </Link>
             {data?.user?.role === "admin" && <Link className="btn" href="/admin" aria-label="مدیریت"><LayoutDashboard size={18} /></Link>}
             <Link className="btn-primary btn" href={data ? "/account" : "/login"}><UserRound size={18} />{data ? "پنل" : "ورود"}</Link>
@@ -57,7 +57,7 @@ export function SiteHeader() {
             <Link
               key={category.slug}
               href={`/shop?category=${category.slug}`}
-              className="shrink-0 rounded-full border border-[#B8874B]/25 bg-[#FFF4DF] px-4 py-2 text-sm font-medium text-[#4A2F1B] transition hover:border-[#FF8A1F] hover:bg-white"
+              className="shrink-0 rounded-full border border-[#B8874B]/25 bg-[#F7F1E3] px-4 py-2 text-sm font-medium text-[#4A2F1B] transition hover:border-[#8B5A2B] hover:bg-white"
             >
               {category.name}
             </Link>

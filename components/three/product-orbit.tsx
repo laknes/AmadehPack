@@ -18,7 +18,7 @@ function PackModel() {
       </mesh>
       <mesh position={[0, 1.22, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[1.05, 0.08, 20, 96]} />
-        <meshStandardMaterial color="#ff8a1f" emissive="#7a3d0b" emissiveIntensity={0.55} />
+          <meshStandardMaterial color="#8b5a2b" emissive="#7a3d0b" emissiveIntensity={0.55} />
       </mesh>
     </Float>
   );
@@ -29,8 +29,8 @@ export function ProductOrbit({ compact = false }: { compact?: boolean }) {
     <div className={compact ? "h-[300px] w-full" : "h-[520px] w-full"}>
       <Canvas camera={{ position: [0, 0.4, 5], fov: 42 }}>
         <ambientLight intensity={0.7} />
-        <pointLight position={[4, 3, 3]} intensity={18} color="#ff8a1f" />
-        <pointLight position={[-3, -2, 2]} intensity={8} color="#2ecb68" />
+        <pointLight position={[4, 3, 3]} intensity={18} color="#8b5a2b" />
+        <pointLight position={[-3, -2, 2]} intensity={8} color="#8a9a5b" />
         <PackModel />
         <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.8} />
       </Canvas>

@@ -16,12 +16,25 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  phone: z.string().min(8).optional(),
+  phone: z.string().regex(/^\+[1-9]\d{7,14}$/, "شماره تماس باید با فرمت بین‌المللی وارد شود.").optional(),
   password: z.string().min(8),
 });
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),
+});
+
+export const contactTicketSchema = z.object({
+  fullName: z.string().trim().min(2, "نام کامل را وارد کنید."),
+  phone: z.string().trim().regex(/^\+[1-9]\d{7,14}$/, "شماره تماس باید با کد کشور و فرمت بین‌المللی باشد."),
+  requestType: z.enum(["bulk", "print", "support", "partnership"]),
+  product: z.string().trim().max(160).optional().default(""),
+  quantity: z.string().trim().max(80).optional().default(""),
+  message: z.string().trim().min(10, "پیام باید حداقل ۱۰ کاراکتر باشد.").max(5000, "پیام بیش از حد طولانی است."),
+});
+
+export const contactTicketStatusSchema = z.object({
+  status: z.enum(["NEW", "IN_PROGRESS", "ANSWERED", "CLOSED"]),
 });
 
 export const productSchema = z.object({

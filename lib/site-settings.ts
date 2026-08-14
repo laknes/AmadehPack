@@ -32,12 +32,19 @@ function mergeSiteSettings(value: unknown): SiteSettings {
       })
     : defaultSiteSettings.shipping.methods;
 
+  const siteName = asString(value.siteName, defaultSiteSettings.siteName ?? "کرافت پک");
+  const seoTitle = asString(value.seoTitle, defaultSiteSettings.seoTitle ?? "کرافت پک | فروشگاه بسته‌بندی غذا");
+  const primaryButtonColor = asString(appearance.primaryButtonColor, defaultSiteSettings.appearance.primaryButtonColor);
+
   return {
     ...defaultSiteSettings,
     ...value,
+    siteName: siteName === "آماده‌پک" ? "کرافت پک" : siteName,
+    seoTitle: seoTitle === "آماده‌پک | فروشگاه بسته‌بندی غذا" ? "کرافت پک | فروشگاه بسته‌بندی غذا" : seoTitle,
     appearance: {
       ...defaultSiteSettings.appearance,
       ...appearance,
+      primaryButtonColor: primaryButtonColor === "#ff8a1f" ? "#8b5a2b" : primaryButtonColor,
     },
     shipping: {
       defaultMethodId: asString(shipping.defaultMethodId, defaultSiteSettings.shipping.defaultMethodId),

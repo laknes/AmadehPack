@@ -31,14 +31,14 @@ export type SiteSettings = {
 };
 
 export const defaultSiteSettings: SiteSettings = {
-  siteName: "آماده‌پک",
+  siteName: "کرافت پک",
   supportPhone: "021-00000000",
   supportEmail: "sales@amadehpack.local",
   address: "",
-  seoTitle: "آماده‌پک | فروشگاه بسته‌بندی غذا",
+  seoTitle: "کرافت پک | فروشگاه بسته‌بندی غذا",
   seoDescription: "فروشگاه حرفه‌ای ظروف کاغذی، کرافت، درب و بسته‌بندی غذای آماده.",
   appearance: {
-    primaryButtonColor: "#ff8a1f",
+    primaryButtonColor: "#8b5a2b",
     primaryButtonTextColor: "#1c1108",
     buttonColor: "#ffffff",
     buttonTextColor: "#1c1108",

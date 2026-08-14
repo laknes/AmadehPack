@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 const adminEmail = process.env.ADMIN_EMAIL ?? "admin@amadehpack.local";
 const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123456";
-const adminName = process.env.ADMIN_NAME ?? "مدیر آماده‌پک";
+const adminName = process.env.ADMIN_NAME ?? "مدیر کرافت پک";
 const adminPhone = process.env.ADMIN_PHONE ?? "09105400104";
 
 const products = [
@@ -60,7 +60,7 @@ async function main() {
   const brand = await prisma.brand.upsert({
     where: { slug: "amadeh-pack" },
     update: {},
-    create: { name: "آماده‌پک", slug: "amadeh-pack", description: "ظروف کرافت و ملزومات بسته‌بندی غذا" },
+    create: { name: "کرافت پک", slug: "amadeh-pack", description: "ظروف کرافت و ملزومات بسته‌بندی غذا" },
   });
 
   const categories = await Promise.all(
@@ -172,13 +172,13 @@ async function main() {
       key: "site",
       group: "general",
       value: {
-        siteName: "آماده‌پک",
+        siteName: "کرافت پک",
         supportPhone: "021-00000000",
         supportEmail: "sales@amadehpack.local",
-        seoTitle: "آماده‌پک | فروشگاه بسته‌بندی غذا",
+        seoTitle: "کرافت پک | فروشگاه بسته‌بندی غذا",
         seoDescription: "فروشگاه حرفه‌ای ظروف کاغذی، کرافت، درب و بسته‌بندی غذای آماده.",
         appearance: {
-          primaryButtonColor: "#ff8a1f",
+          primaryButtonColor: "#8b5a2b",
           primaryButtonTextColor: "#1c1108",
           buttonColor: "#ffffff",
           buttonTextColor: "#1c1108",

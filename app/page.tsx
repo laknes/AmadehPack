@@ -46,7 +46,7 @@ export default function HomePage() {
     <>
       <section className="container grid min-h-[calc(100vh-80px)] items-center gap-8 py-10 lg:grid-cols-[1fr_0.95fr]">
         <div>
-          <div className="mb-6 inline-flex rounded-full border border-[#B8874B]/30 bg-[#FFF4DF] px-4 py-2 text-sm text-[#B8874B]">کاتالوگ ۲۰۲۶ آماده‌پک، آماده فروش آنلاین</div>
+          <div className="mb-6 inline-flex rounded-full border border-[#B8874B]/30 bg-[#FFF4DF] px-4 py-2 text-sm text-[#B8874B]">کاتالوگ ۲۰۲۶ کرافت پک، آماده فروش آنلاین</div>
           <h1 className="neon-text text-5xl font-black leading-tight md:text-7xl">فروشگاه کامل بسته‌بندی غذا برای سفارش عمده و آنلاین</h1>
           <p className="mt-6 max-w-2xl text-lg leading-9 text-[#6F6256]">لیوان، کاسه، کارتن پیتزا، درب و کاغذ دورپیچ با مسیر کامل خرید، چاپ اختصاصی، پیش‌فاکتور، پرداخت، پیگیری سفارش و پنل مدیریتی.</p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -56,7 +56,7 @@ export default function HomePage() {
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
             {[["ارسال عمده", Truck], ["کنترل کیفیت", ShieldCheck], ["چاپ اختصاصی", Sparkles]].map(([label, Icon]) => (
               <GlassPanel key={String(label)} className="rounded-3xl p-4">
-                <Icon className="mb-3 text-[#FF8A1F]" size={22} />
+                <Icon className="mb-3 text-[#8B5A2B]" size={22} />
                 <strong>{label as string}</strong>
               </GlassPanel>
             ))}
@@ -156,7 +156,7 @@ export default function HomePage() {
               ["۴", "پرداخت و پیگیری", "پرداخت mock آماده اتصال به درگاه واقعی است و سفارش قابل پیگیری می‌شود."],
             ].map(([step, title, text]) => (
               <div key={step} className="grid gap-4 rounded-[20px] border border-[#B8874B] bg-white p-4 sm:grid-cols-[56px_1fr]">
-                <span className="grid size-12 place-items-center rounded-2xl bg-[#FF8A1F] font-black text-[#1c1108]">{step}</span>
+                <span className="grid size-12 place-items-center rounded-2xl bg-[#8B5A2B] font-black text-[#FFF4DF]">{step}</span>
                 <div>
                   <h3 className="font-bold">{title}</h3>
                   <p className="mt-2 leading-7 text-[#6F6256]">{text}</p>
@@ -180,7 +180,7 @@ export default function HomePage() {
             <table className="w-full min-w-[760px] border-collapse bg-white text-sm">
               <thead className="bg-[#4A2F1B] text-[#FFF4DF]">
                 <tr>
-                  {["کاربرد", "پیشنهاد آماده‌پک", "مزیت", "اقدام"].map((head) => <th key={head} className="p-4 text-right">{head}</th>)}
+                            {["کاربرد", "پیشنهاد کرافت پک", "مزیت", "اقدام"].map((head) => <th key={head} className="p-4 text-right">{head}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -212,7 +212,7 @@ export default function HomePage() {
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {[["۶", "دسته محصول"], ["۵۶", "مسیر صفحه/API"], ["۲", "نقش کاربری"]].map(([value, label]) => (
                 <div key={label} className="rounded-[18px] border border-[#B8874B] bg-[#FFF4DF] p-4">
-                  <strong className="text-2xl text-[#005D21]">{value}</strong>
+                  <strong className="text-2xl text-[#5C6B3C]">{value}</strong>
                   <p className="mt-1 text-sm text-[#6F6256]">{label}</p>
                 </div>
               ))}
