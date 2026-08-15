@@ -1,7 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 
-const authSecret = process.env.NEXTAUTH_SECRET ?? "amadeh-pack-local-development-secret-change-in-production";
+const authSecret = process.env.NEXTAUTH_SECRET ?? "kraft-pack-local-development-secret-change-in-production";
 const isProduction = process.env.NODE_ENV === "production";
 const isProductionRuntime = isProduction && process.env.NEXT_PHASE !== "phase-production-build";
 

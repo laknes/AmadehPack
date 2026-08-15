@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-const adminEmail = process.env.ADMIN_EMAIL ?? "admin@amadehpack.local";
+const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kraftpack.local";
 const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123456";
 const adminName = process.env.ADMIN_NAME ?? "مدیر کرافت پک";
 const adminPhone = process.env.ADMIN_PHONE ?? "09105400104";
@@ -46,11 +46,11 @@ async function main() {
   });
 
   const customer = await prisma.user.upsert({
-    where: { email: "customer@amadehpack.local" },
+    where: { email: "customer@kraftpack.local" },
     update: {},
     create: {
       name: "مشتری نمونه",
-      email: "customer@amadehpack.local",
+      email: "customer@kraftpack.local",
       phone: "09120000000",
       passwordHash: await bcrypt.hash("user123456", 10),
       roles: { create: [{ roleId: userRole.id }] },
@@ -174,7 +174,7 @@ async function main() {
       value: {
         siteName: "کرافت پک",
         supportPhone: "021-00000000",
-        supportEmail: "sales@amadehpack.local",
+        supportEmail: "sales@kraftpack.local",
         seoTitle: "کرافت پک | فروشگاه بسته‌بندی غذا",
         seoDescription: "فروشگاه حرفه‌ای ظروف کاغذی، کرافت، درب و بسته‌بندی غذای آماده.",
         appearance: {

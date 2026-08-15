@@ -45,7 +45,7 @@ export function SiteFooter() {
           <h3 className="mb-4 font-bold">ارتباط</h3>
           <div className="grid gap-3 text-[#6F6256]">
             <span className="flex items-center gap-2"><Phone size={16} /> 021-00000000</span>
-            <span className="flex items-center gap-2"><Mail size={16} /> sales@amadehpack.local</span>
+            <span className="flex items-center gap-2"><Mail size={16} /> sales@kraftpack.local</span>
             <span className="flex items-center gap-2"><MapPin size={16} /> تهران، ایران</span>
           </div>
         </section>

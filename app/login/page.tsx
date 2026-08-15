@@ -34,14 +34,13 @@ export default function LoginPage() {
     <section className="container section grid place-items-center">
       <form action={submit} className="glass grid w-full max-w-md gap-4 rounded-[28px] p-6">
         <h1 className="text-3xl font-black">ورود کاربر</h1>
-        <input className="field" name="email" type="email" placeholder="ایمیل" defaultValue="admin@amadehpack.local" required />
+        <input className="field" name="email" type="email" placeholder="ایمیل" required />
         <div className="relative">
           <input
             className="field pl-12"
             name="password"
             type={showPassword ? "text" : "password"}
             placeholder="رمز عبور"
-            defaultValue="admin123456"
             required
           />
           <button

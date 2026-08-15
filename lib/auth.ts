@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/validators";
 
-const authSecret = process.env.NEXTAUTH_SECRET ?? "amadeh-pack-local-development-secret-change-in-production";
+const authSecret = process.env.NEXTAUTH_SECRET ?? "kraft-pack-local-development-secret-change-in-production";
 const isProductionRuntime = process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build";
 
 if (isProductionRuntime && !process.env.NEXTAUTH_SECRET) {

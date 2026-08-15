@@ -11,7 +11,7 @@ export default function ContactPage() {
         <h2 className="mb-4 text-xl font-bold text-[#1C1108]">اطلاعات تماس</h2>
         <div className="grid gap-3">
           <p className="flex items-center gap-2"><Phone size={18} className="text-[#8B5A2B]" /> تلفن: 021-00000000</p>
-          <p className="flex items-center gap-2"><Mail size={18} className="text-[#8B5A2B]" /> ایمیل: sales@amadehpack.local</p>
+          <p className="flex items-center gap-2"><Mail size={18} className="text-[#8B5A2B]" /> ایمیل: sales@kraftpack.local</p>
           <p className="flex items-center gap-2"><MapPin size={18} className="text-[#8B5A2B]" /> آدرس: تهران، ایران</p>
         </div>
         <div className="mt-6 grid gap-3 border-t border-[#B8874B]/25 pt-5">

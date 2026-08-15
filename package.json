@@ -2,7 +2,7 @@
   "name": "amadeh-pack-commerce",
   "version": "2.0.0",
   "private": true,
-  "description": "Production-ready luxury 3D ecommerce platform for Amadeh Pack.",
+  "description": "Production-ready luxury 3D ecommerce platform for Kraft Pack.",
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "dev": "next dev",
@@ -17,9 +17,6 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@fontsource-variable/vazirmatn": "^5.2.8",

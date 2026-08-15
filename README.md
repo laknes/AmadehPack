@@ -1,16 +1,16 @@
-# Amadeh Pack Commerce
+# Kraft Pack Commerce
 
-فروشگاه حرفه‌ای آماده‌پک با Next.js 15، TypeScript، TailwindCSS، Framer Motion، React Three Fiber، Prisma، PostgreSQL، NextAuth، Zustand و Zod.
+فروشگاه حرفه‌ای کرافت پک با Next.js 15، TypeScript، TailwindCSS، Framer Motion، React Three Fiber، Prisma، PostgreSQL، NextAuth، Zustand و Zod.
 
 ## امکانات
 
 - طراحی RTL، responsive، گلاس‌مورفیسم، نئون، 3D و micro-interaction
 - صفحات خانه، فروشگاه، محصول، سبد خرید، تسویه حساب، پنل کاربری، پیگیری سفارش، علاقه‌مندی‌ها، بلاگ، درباره، تماس و قوانین
 - پنل مدیریت برای محصولات، تصاویر، دسته‌بندی‌ها، موجودی، سفارش‌ها، کاربران، کوپن، بنر، نظرات، بلاگ، تنظیمات، نقش‌ها و لاگ فعالیت
-- دیتابیس Prisma شامل User, Role, Product, Category, Brand, ProductImage, ProductVariant, Inventory, Order, OrderItem, Cart, CartItem, Wishlist, Review, Coupon, Payment, ShippingAddress, BlogPost, Banner, ActivityLog
+- دیتابیس Prisma شامل User, Role, Product, Category, Brand, ProductImage, ProductVariant, Inventory, Order, OrderItem, Cart, CartItem, Wishlist, Review, Coupon, Payment, ShippingAddress, BlogPost, Banner, ContactTicket, ActivityLog
 - NextAuth با نقش admin/user
 - APIهای CRUD، validation با Zod، پرداخت mock، cart پایدار با Zustand، sitemap و robots
-- APIهای مدیریت درگاه پرداخت، callback/verify پرداخت، تنظیمات اینماد و تنظیمات سایت
+- APIهای مدیریت درگاه پرداخت، callback/verify پرداخت، تنظیمات اینماد، تنظیمات سایت و مدیریت تیکت‌های تماس
 
 ## راه‌اندازی
 
@@ -32,9 +32,9 @@ chmod +x install.sh
 ./install.sh
 ```
 
-اسکریپت دامنه، `DATABASE_URL`، تولید خودکار `NEXTAUTH_SECRET`، تنظیمات NextAuth، مسیر آپلود، اطلاعات ادمین، اجرای `prisma db push`، seed اولیه، build production و سرویس `systemd` را مرحله‌به‌مرحله تنظیم می‌کند.
+اسکریپت دامنه، `DATABASE_URL`، تولید خودکار `NEXTAUTH_SECRET`، تنظیمات NextAuth، مسیر آپلود، اطلاعات ادمین، اجرای `prisma db push`، seed اولیه، build production و سرویس `systemd` با نام `kraft-pack` را مرحله‌به‌مرحله تنظیم می‌کند.
 
-اسکریپت تمام تنظیمات لازم شامل دامنه، لینک‌های `DATABASE_URL` و `DIRECT_URL`، کلید NextAuth، مسیر آپلود، تنظیمات SSL و اطلاعات ادمین را مستقیماً در زمان اجرا از شما دریافت می‌کند. اگر کاربر برای هر مقدار فقط Enter بزند، مقدار پیش‌فرض همان فیلد استفاده می‌شود. `NEXTAUTH_SECRET` و رمز ادمین نیز در صورت خالی‌گذاشتن، خودکار توسط اسکریپت تولید می‌شوند. هیچ مقدار تنظیماتی از environment یا فایل `.env` خوانده نمی‌شود؛ نصب را بدون آرگومان اجرا کنید:
+اسکریپت تمام تنظیمات لازم شامل دامنه، لینک‌های `DATABASE_URL` و `DIRECT_URL`، کلید NextAuth، مسیر آپلود، تنظیمات SSL و اطلاعات ادمین را مستقیماً در زمان اجرا از شما دریافت می‌کند. اگر کاربر برای هر مقدار فقط Enter بزند، مقدار پیش‌فرض همان فیلد استفاده می‌شود. `NEXTAUTH_SECRET` و رمز ادمین نیز در صورت خالی‌گذاشتن، خودکار توسط اسکریپت تولید می‌شوند. خود installer تنظیمات را از environment یا فایل `.env` نمی‌خواند؛ نصب را بدون آرگومان اجرا کنید:
 
 ```bash
 ./install.sh
@@ -52,11 +52,11 @@ http://localhost:3000
 
 ```txt
 Admin:
-email: admin@amadehpack.local
-password: admin123456
+email: مقداری که installer در پایان نمایش می‌دهد
+password: مقداری که installer در پایان نمایش می‌دهد
 
 User:
-email: customer@amadehpack.local
+email: customer@kraftpack.local
 password: user123456
 ```
 
@@ -64,7 +64,7 @@ password: user123456
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/amadeh_pack?schema=public"
-NEXTAUTH_SECRET="change-me"
+NEXTAUTH_SECRET="generate-a-long-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 ```
@@ -94,6 +94,10 @@ npm run db:seed
 ```
 
 ## APIهای پرداخت و اینماد
+
+- `POST /api/contact`: ثبت تیکت تماس عمومی
+- `GET /api/admin/contact-tickets`: مشاهده تیکت‌ها توسط ادمین
+- `PATCH|DELETE /api/admin/contact-tickets/:id`: تغییر وضعیت یا حذف تیکت
 
 - `GET /api/payment/gateways`: درگاه‌های فعال برای کاربر
 - `POST /api/payment/request`: ساخت تراکنش و دریافت `redirectUrl`

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APP_NAME="amadeh-pack"
+APP_NAME="kraft-pack"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$APP_DIR/.env"
 ENV_PROD_FILE="$APP_DIR/.env.production"
@@ -272,7 +272,7 @@ create_systemd_service() {
 
   sudo_cmd tee "/etc/systemd/system/$APP_NAME.service" >/dev/null <<EOF
 [Unit]
-Description=Amadeh Pack Next.js application
+Description=Kraft Pack Next.js application
 After=network.target
 
 [Service]
@@ -386,7 +386,7 @@ EOF
 }
 
 main() {
-  say "Amadeh Pack installer"
+  say "Kraft Pack installer"
   step "Starting installation"
   cd "$APP_DIR"
 

@@ -33,7 +33,7 @@ export type SiteSettings = {
 export const defaultSiteSettings: SiteSettings = {
   siteName: "کرافت پک",
   supportPhone: "021-00000000",
-  supportEmail: "sales@amadehpack.local",
+  supportEmail: "sales@kraftpack.local",
   address: "",
   seoTitle: "کرافت پک | فروشگاه بسته‌بندی غذا",
   seoDescription: "فروشگاه حرفه‌ای ظروف کاغذی، کرافت، درب و بسته‌بندی غذای آماده.",
