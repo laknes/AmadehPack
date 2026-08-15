@@ -7,6 +7,14 @@ const adminEmail = process.env.ADMIN_EMAIL ?? "admin@kraftpack.local";
 const adminPassword = process.env.ADMIN_PASSWORD ?? "admin123456";
 const adminName = process.env.ADMIN_NAME ?? "مدیر کرافت پک";
 const adminPhone = process.env.ADMIN_PHONE ?? "09105400104";
+const customerEmail = "customer@kraftpack.local";
+const customerPhone = "09120000000";
+
+async function getAvailablePhone(phone: string, email: string) {
+  if (!phone) return null;
+  const owner = await prisma.user.findUnique({ where: { phone } });
+  return owner && owner.email !== email ? null : phone;
+}
 
 const products = [
   ["لیوان ۲۲۰cc یکروکرافت سوئدی", "cup-220-kraft", "CUP-220-KRAFT", "cups", "لیوان اقتصادی ECO با مقوای اروپایی و بسته‌بندی ۲۰۰۰ عددی"],
@@ -29,29 +37,31 @@ async function main() {
     create: { name: "user", description: "Customer access" },
   });
 
+  const safeAdminPhone = await getAvailablePhone(adminPhone, adminEmail);
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
       name: adminName,
-      phone: adminPhone || null,
+      phone: safeAdminPhone,
       passwordHash: await bcrypt.hash(adminPassword, 10),
     },
     create: {
       name: adminName,
       email: adminEmail,
-      phone: adminPhone || null,
+      phone: safeAdminPhone,
       passwordHash: await bcrypt.hash(adminPassword, 10),
       roles: { create: [{ roleId: adminRole.id }] },
     },
   });
 
+  const safeCustomerPhone = await getAvailablePhone(customerPhone, customerEmail);
   const customer = await prisma.user.upsert({
-    where: { email: "customer@kraftpack.local" },
+    where: { email: customerEmail },
     update: {},
     create: {
       name: "مشتری نمونه",
-      email: "customer@kraftpack.local",
-      phone: "09120000000",
+      email: customerEmail,
+      phone: safeCustomerPhone,
       passwordHash: await bcrypt.hash("user123456", 10),
       roles: { create: [{ roleId: userRole.id }] },
     },
