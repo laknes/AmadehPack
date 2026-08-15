@@ -57,6 +57,7 @@ function mergeSiteSettings(value: unknown): SiteSettings {
 }
 
 export async function getSiteSettings() {
+  if (process.env.NEXT_PHASE === "phase-production-build") return defaultSiteSettings;
   if (!process.env.DATABASE_URL) return defaultSiteSettings;
 
   try {
