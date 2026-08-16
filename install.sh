@@ -458,7 +458,7 @@ main() {
     ADMIN_EMAIL="$admin_email" ADMIN_PASSWORD="$admin_password" ADMIN_NAME="$admin_name" ADMIN_PHONE="$admin_phone" npm run db:seed
   fi
 
-  npm run build -- --no-lint
+  npm run build 
 
   if [[ ! -d "$upload_dir" ]]; then
     mkdir -p "$upload_dir"
